@@ -41,6 +41,10 @@ private:
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
 
+    // 300x Metrics
+    thunderforge::VU_Meter inputMeter;
+    thunderforge::VU_Meter outputMeter;
+
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     std::unique_ptr<Attachment> gateAttachment;
     std::unique_ptr<Attachment> compAttachment;

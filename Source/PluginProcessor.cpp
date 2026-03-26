@@ -22,10 +22,17 @@ void ThunderforgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     spec.maximumBlockSize = samplesPerBlock;
     spec.numChannels = getTotalNumOutputChannels();
 
+    toneStack.prepare (sampleRate);
+    
+    oversampler = std::make_unique<juce::dsp::Oversampling<float>> (getTotalNumInputChannels(), 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false);
+    oversampler->initProcessing (samplesPerBlock);
+    setLatencySamples ((int)oversampler->getLatencyInSamples());
+    
+    testOsc.prepare ({ sampleRate, (juce::uint32) samplesPerBlock, (juce::uint32) getTotalNumOutputChannels() });
+
     noiseGate.prepare (sampleRate);
     tubeScreamer.prepare (sampleRate);
     compressor.prepare (sampleRate);
-    toneStack.prepare (sampleRate);
     waveShaper.prepare (sampleRate);
     namProcessor.prepare (sampleRate, samplesPerBlock);
     cabinetSim.prepare (spec);
@@ -33,7 +40,6 @@ void ThunderforgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     reverb.prepare (spec);
     chorus.prepare (spec);
     
-    testOsc.prepare (spec);
 }
 
 void ThunderforgeAudioProcessor::releaseResources() {}
@@ -135,19 +141,19 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // Master Volume
     float masterVolDb = *apvts.getRawParameterValue ("master_volume");
-    float gain = juce::Decibels::decibelsToGain (masterVolDb);
-    buffer.applyGain (gain);
+    // --- OUTPUT GAIN ---
+    float outGain = juce::Decibels::decibelsToGain ((float)*apvts.getRawParameterValue ("output_gain"));
+    buffer.applyGain (outGain);
 
-    // Track Peak Level for UI Glow
-    float maxAbs = 0.0f;
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-        maxAbs = std::max (maxAbs, buffer.getMagnitude (channel, 0, buffer.getNumSamples()));
-    peakLevel.store (maxAbs);
+    float outPeak = buffer.getMagnitude (0, buffer.getNumSamples());
+    outputLevel.store (outPeak);
 
+    peakLevel.store (outPeak); // For general glow
+    
     // Push to FFT
-    auto* channelData = buffer.getReadPointer (0);
+    // For simplicity, only push the first sample of the first channel
     for (int i = 0; i < buffer.getNumSamples(); ++i)
-        pushNextSampleIntoFifo (channelData[i]);
+        pushNextSampleIntoFifo (buffer.getSample (0, i));
 }
 
 void ThunderforgeAudioProcessor::pushNextSampleIntoFifo (float sample) noexcept
@@ -273,6 +279,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("reverb_predelay", "Reverb Pre-Delay", 0.0f, 200.0f, 20.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("reverb_mix", "Reverb Mix", 0.0f, 100.0f, 20.0f));
     params.push_back (std::make_unique<juce::AudioParameterBool> ("reverb_bypass", "Reverb Bypass", false));
+
+    // I/O Gain
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("input_gain", "Input Gain", -20.0f, 20.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("output_gain", "Output Gain", -20.0f, 20.0f, 0.0f));
 
     // Chorus
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("chorus_rate", "Chorus Rate", 0.1f, 10.0f, 1.0f));

@@ -35,6 +35,10 @@ public:
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
+    float getInputLevel() const noexcept { return inputLevel.load(); }
+    float getOutputLevel() const noexcept { return outputLevel.load(); }
+
+    juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -91,11 +95,15 @@ private:
     std::vector<float> scopeData;
     std::atomic<float> currentPeakHz { 0.0f };
     std::atomic<float> peakLevel { 0.0f };
+    std::atomic<float> inputLevel { 0.0f };
+    std::atomic<float> outputLevel { 0.0f };
     
     std::mutex fftMutex;
     
-    // Internal Test Oscillator
+    // Internal Test Oscillator / DSP Helpers
     juce::dsp::Oscillator<float> testOsc;
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+    
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
     

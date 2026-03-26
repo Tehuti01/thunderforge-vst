@@ -21,6 +21,8 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     addAndMakeVisible (prevButton);
     addAndMakeVisible (nextButton);
     addAndMakeVisible (presetLabel);
+    addAndMakeVisible (inputMeter);
+    addAndMakeVisible (outputMeter);
 
     presetLabel.setJustificationType (juce::Justification::centred);
     presetLabel.setFont (juce::FontOptions().withName ("JetBrains Mono").withHeight (14.0f));
@@ -74,6 +76,24 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
     
+    g.fillAll (thunderforge::ThunderforgeLookAndFeel::aeroDark);
+    
+    // --- 300x TUBE GLOW ---
+    auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
+    auto peak = audioProcessor.getPeakLevel();
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    
+    auto area = getLocalBounds().toFloat().reduced (40);
+    auto preampArea = area.removeFromLeft (140).reduced (10);
+    
+    juce::ColourGradient tubeGlow (thunderforge::ThunderforgeLookAndFeel::amberGold.withAlpha ((float)glowAlpha * 0.2f),
+                                   preampArea.getCentreX(), preampArea.getCentreY(),
+                                   thunderforge::ThunderforgeLookAndFeel::aeroDark,
+                                   preampArea.getCentreX(), preampArea.getY(), true);
+    g.setGradientFill (tubeGlow);
+    g.fillRoundedRectangle (preampArea, 10.0f);
+    
+    // --- MODULE HEADERS ---
     // 1. Overall Chassis (Machined Metal Gradient)
     juce::ColourGradient chassis (thunderforge::ThunderforgeLookAndFeel::aeroPanelLight, 0, 0,
                                   thunderforge::ThunderforgeLookAndFeel::aeroDark, 0, bounds.getHeight(), false);
@@ -98,6 +118,16 @@ void ThunderforgeAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced (30, 25);
     auto headerArea = area.removeFromTop (80);
+    
+    // 300x LAYOUT - METERS & HEADERS
+    auto inputArea = area.removeFromLeft (30).reduced (5);
+    inputMeter.setBounds (inputArea.toNearestInt());
+    
+    auto outputAreaR = area.removeFromRight (30).reduced (5);
+    outputMeter.setBounds (outputAreaR.toNearestInt());
+
+    // 2. Dynamics Section
+    auto dynamicsArea = area.removeFromLeft (140);
     
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
@@ -169,6 +199,10 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
     delayKnob.setLevel (level);
     reverbKnob.setLevel (level);
     masterKnob.setLevel (level);
+
+    // Update Meters
+    inputMeter.setLevel (audioProcessor.getInputLevel());
+    outputMeter.setLevel (audioProcessor.getOutputLevel());
 
     // Update Preset Label
     presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
