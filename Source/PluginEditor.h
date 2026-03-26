@@ -40,6 +40,8 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
+    juce::TextButton loadNAMButton { "LOAD AMP" };
+    juce::TextButton loadIRButton { "LOAD CAB" };
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
@@ -55,6 +57,8 @@ private:
     std::unique_ptr<Attachment> delayAttachment;
     std::unique_ptr<Attachment> reverbAttachment;
     std::unique_ptr<Attachment> masterAttachment;
+    
+    std::unique_ptr<juce::FileChooser> chooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThunderforgeAudioProcessorEditor)
 };

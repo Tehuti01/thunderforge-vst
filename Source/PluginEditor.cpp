@@ -63,7 +63,28 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    setSize (1100, 650);
+    addAndMakeVisible (loadNAMButton);
+    addAndMakeVisible (loadIRButton);
+
+    loadNAMButton.onClick = [this] {
+        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
+        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
+            auto file = fc.getResult();
+            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
+        });
+    };
+
+    loadIRButton.onClick = [this] {
+        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
+        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
+            auto file = fc.getResult();
+            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
+        });
+    };
+
+    setSize (1000, 650);
     startTimerHz (60);
 }
 
@@ -93,6 +114,16 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     g.setGradientFill (tubeGlow);
     g.fillRoundedRectangle (preampArea, 10.0f);
     
+    // LCD Refraction & Labels
+    auto lcdArea = lcd.getBounds().toFloat();
+    g.setColour (juce::Colours::white.withAlpha (0.03f));
+    g.fillRoundedRectangle (lcdArea.removeFromTop (40), 5.0f); // Glass Glint
+    
+    g.setColour (thunderforge::ThunderforgeLookAndFeel::aeroCyan.withAlpha (0.6f));
+    g.setFont (juce::FontOptions().withName ("JetBrains Mono").withHeight (10.0f));
+    g.drawText ("AMP: " + audioProcessor.getLoadedNAMName(), lcdArea.removeFromTop (20).reduced (10, 0), juce::Justification::left);
+    g.drawText ("CAB: " + audioProcessor.getLoadedIRName(), lcdArea.removeFromTop (20).reduced (10, 0), juce::Justification::left);
+
     // --- MODULE HEADERS ---
     // 1. Overall Chassis (Machined Metal Gradient)
     juce::ColourGradient chassis (thunderforge::ThunderforgeLookAndFeel::aeroPanelLight, 0, 0,
@@ -129,6 +160,11 @@ void ThunderforgeAudioProcessorEditor::resized()
     // 2. Dynamics Section
     auto dynamicsArea = area.removeFromLeft (140);
     
+    // Snapshot Buttons
+    auto buttonsArea = area.removeFromTop (30);
+    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
     

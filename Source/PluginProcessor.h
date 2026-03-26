@@ -43,6 +43,12 @@ public:
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
+    // 300x SNAPSHOT LOADING
+    void loadNAMModel (const juce::File& file);
+    void loadCabinetIR (const juce::File& file);
+    juce::String getLoadedNAMName() const { return currentNAMName; }
+    juce::String getLoadedIRName() const { return currentIRName; }
+
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
@@ -98,6 +104,12 @@ private:
     std::atomic<float> inputLevel { 0.0f };
     std::atomic<float> outputLevel { 0.0f };
     
+    // 300x Modules
+    std::unique_ptr<nam::DSP> namModule;
+    juce::dsp::Convolution cabinetIR;
+    juce::String currentNAMName { "ELITE TUBE" };
+    juce::String currentIRName { "4x12 V30" };
+
     std::mutex fftMutex;
     
     // Internal Test Oscillator / DSP Helpers

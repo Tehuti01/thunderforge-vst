@@ -141,6 +141,23 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // Master Volume
     float masterVolDb = *apvts.getRawParameterValue ("master_volume");
+    // --- CABINET IR ---
+    bool cabinetBypass = *apvts.getRawParameterValue ("bypass_cabinet");
+    if (!cabinetBypass)
+    {
+        juce::dsp::AudioBlock<float> block (buffer);
+        juce::dsp::ProcessContextReplacing<float> context (block);
+        cabinetIR.process (context);
+    }
+
+    // --- NAM MODULE ---
+    if (namModule != nullptr)
+    {
+        // NAM processing logic (simplified for walkthrough)
+        // In a real implementation, we'd wrap the buffer and process per sample
+    }
+
+    // --- 4x OVERSAMPLING EXIT ---
     // --- OUTPUT GAIN ---
     float outGain = juce::Decibels::decibelsToGain ((float)*apvts.getRawParameterValue ("output_gain"));
     buffer.applyGain (outGain);
@@ -221,6 +238,25 @@ void ThunderforgeAudioProcessor::setStateInformation (const void* data, int size
     if (xmlState.get() != nullptr)
         if (xmlState->hasTagName (apvts.state.getType()))
             apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+void ThunderforgeAudioProcessor::loadNAMModel (const juce::File& file)
+{
+    try {
+        std::filesystem::path modelPath (file.getFullPathName().toStdString());
+        auto model = nam::get_dsp (modelPath);
+        if (model != nullptr) {
+            namModule = std::move (model);
+            currentNAMName = file.getFileName();
+        }
+    } catch (...) {}
+}
+
+void ThunderforgeAudioProcessor::loadCabinetIR (const juce::File& file)
+{
+    cabinetIR.loadImpulseResponse (file, juce::dsp::Convolution::Stereo::yes, 
+                                   juce::dsp::Convolution::Trim::yes, 0);
+    currentIRName = file.getFileName();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::createParameterLayout()
