@@ -18,7 +18,7 @@ public:
         g.fillRect (bounds);
         
         g.setColour (ThunderforgeLookAndFeel::softWhite.withAlpha (0.5f));
-        g.setFont (juce::Font ("JetBrains Mono", 14.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions ("JetBrains Mono", 14.0f, juce::Font::bold));
         g.drawText ("SIGNAL CHAIN", bounds.removeFromTop (30).reduced (20, 0), juce::Justification::left, true);
         
         // Draw dashed lines between pedal blocks (conceptual)

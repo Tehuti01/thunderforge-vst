@@ -17,7 +17,7 @@ public:
         g.fillRect (bounds);
         
         g.setColour (ThunderforgeLookAndFeel::tubeGreen);
-        g.setFont (juce::Font ("JetBrains Mono", 12.0f, juce::Font::plain));
+        g.setFont (juce::FontOptions ("JetBrains Mono", 12.0f, juce::Font::plain));
         
         juce::String statusText = "CPU: 12% | 48kHz / 128 | Latency: 2.9ms | Model: Plexi '68 Bright";
         g.drawText (statusText.toUpperCase(), bounds.reduced (20, 0), juce::Justification::centredLeft, true);

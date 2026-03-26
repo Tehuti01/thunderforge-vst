@@ -36,7 +36,7 @@ public:
         
         // Logo
         g.setColour (ThunderforgeLookAndFeel::marshallGold);
-        g.setFont (juce::Font ("Cabinet Grotesk", 32.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions ("Cabinet Grotesk", 32.0f, juce::Font::bold));
         g.drawText ("L H   T H U N D E R F O R G E", panelArea.removeFromBottom (60), juce::Justification::centred, true);
     }
 
