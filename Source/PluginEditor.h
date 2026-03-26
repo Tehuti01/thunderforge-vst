@@ -30,8 +30,9 @@ private:
     thunderforge::KnobComponent midKnob     { "MID" };
     thunderforge::KnobComponent trebleKnob  { "TREBLE" };
     thunderforge::KnobComponent delayKnob   { "DELAY" };
-    thunderforge::KnobComponent reverbKnob  { "REVERB" };
-    thunderforge::KnobComponent masterKnob  { "VOLUME" };
+    thunderforge::KnobComponent reverbKnob { "Reverb" };
+    thunderforge::KnobComponent masterKnob { "Output" };
+    thunderforge::KnobComponent widthKnob  { "Width" };
 
     thunderforge::LCDComponent lcd;
     
@@ -57,6 +58,7 @@ private:
     std::unique_ptr<Attachment> delayAttachment;
     std::unique_ptr<Attachment> reverbAttachment;
     std::unique_ptr<Attachment> masterAttachment;
+    std::unique_ptr<Attachment> widthAttachment;
     
     std::unique_ptr<juce::FileChooser> chooser;
 

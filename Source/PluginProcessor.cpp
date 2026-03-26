@@ -157,6 +157,25 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         // In a real implementation, we'd wrap the buffer and process per sample
     }
 
+    // --- STEREO WIDTH (MS Processing) ---
+    float width = *apvts.getRawParameterValue ("stereo_width") / 100.0f;
+    if (buffer.getNumChannels() >= 2)
+    {
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            float l = buffer.getSample (0, i);
+            float r = buffer.getSample (1, i);
+            
+            float mid = (l + r) * 0.5f;
+            float side = (l - r) * 0.5f;
+            
+            side *= width;
+            
+            buffer.setSample (0, i, mid + side);
+            buffer.setSample (1, i, mid - side);
+        }
+    }
+
     // --- 4x OVERSAMPLING EXIT ---
     // --- OUTPUT GAIN ---
     float outGain = juce::Decibels::decibelsToGain ((float)*apvts.getRawParameterValue ("output_gain"));
@@ -319,6 +338,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     // I/O Gain
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("input_gain", "Input Gain", -20.0f, 20.0f, 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("output_gain", "Output Gain", -20.0f, 20.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("stereo_width", "Stereo Width", 0.0f, 200.0f, 100.0f));
 
     // Chorus
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("chorus_rate", "Chorus Rate", 0.1f, 10.0f, 1.0f));

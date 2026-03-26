@@ -16,6 +16,7 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     addAndMakeVisible (delayKnob);
     addAndMakeVisible (reverbKnob);
     addAndMakeVisible (masterKnob);
+    addAndMakeVisible (widthKnob); // Added widthKnob
 
     addAndMakeVisible (testNoteButton);
     addAndMakeVisible (prevButton);
@@ -57,8 +58,9 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     midAttachment    = std::make_unique<Attachment> (audioProcessor.apvts, "eq_mid", midKnob);
     trebleAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "eq_treble", trebleKnob);
     delayAttachment  = std::make_unique<Attachment> (audioProcessor.apvts, "delay_mix", delayKnob);
-    reverbAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "reverb_mix", reverbKnob);
-    masterAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "master_volume", masterKnob);
+    reverbAttachment = std::make_unique<Attachment> (audioProcessor.getAPVTS(), "reverb_mix", reverbKnob);
+    masterAttachment = std::make_unique<Attachment> (audioProcessor.getAPVTS(), "output_gain", masterKnob);
+    widthAttachment  = std::make_unique<Attachment> (audioProcessor.getAPVTS(), "stereo_width", widthKnob);
 
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
