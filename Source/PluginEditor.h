@@ -1,12 +1,8 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
-#include "GUI/LookAndFeel/ThunderforgeLookAndFeel.h"
-#include "GUI/Components/KnobComponent.h"
-#include "GUI/Components/LCDComponent.h"
-#include "GUI/Components/LEDComponent.h"
-#include "GUI/Components/VU_Meter.h"
 
 class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
 {

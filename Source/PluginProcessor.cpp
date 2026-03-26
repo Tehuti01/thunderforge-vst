@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <lh_thunderforge/lh_thunderforge.h>
 
 ThunderforgeAudioProcessor::ThunderforgeAudioProcessor()
     : AudioProcessor (BusesProperties()

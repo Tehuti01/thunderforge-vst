@@ -28,6 +28,9 @@ juce_add_plugin(Thunderforge
     VST3_CATEGORIES "Fx|Distortion|Guitar"
 )
 
+# Custom Thunderforge Module
+juce_add_module(modules/lh_thunderforge)
+
 # NeuralAmpModelerCore as a library
 file(GLOB NAM_SOURCES 
     modules/NeuralAmpModelerCore/NAM/*.cpp
@@ -46,7 +49,6 @@ target_include_directories(NAM_Core PUBLIC
 target_sources(Thunderforge PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
-    Source/GUI/LookAndFeel/ThunderforgeLookAndFeel.cpp
 )
 
 target_include_directories(Thunderforge PRIVATE
@@ -57,6 +59,7 @@ target_link_libraries(Thunderforge PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_opengl
+    lh_thunderforge
     NAM_Core
 )
 

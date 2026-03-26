@@ -1,5 +1,8 @@
+#include <JuceHeader.h>
+#include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <lh_thunderforge/lh_thunderforge.h>
 
 ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
