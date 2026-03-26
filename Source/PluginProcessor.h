@@ -1,0 +1,114 @@
+#pragma once
+
+#include <JuceHeader.h>
+#include "DSP/NoiseGate.h"
+#include "DSP/TubeScreamer.h"
+#include "DSP/Compressor.h"
+#include "DSP/ToneStack.h"
+#include "DSP/WaveShaper.h"
+#include "DSP/NAMProcessor.h"
+#include "DSP/CabinetSim.h"
+#include "DSP/StereoDelay.h"
+#include "DSP/PlateReverb.h"
+#include "DSP/Chorus.h"
+
+#include <queue>
+#include <mutex>
+
+namespace thunderforge {
+    struct Preset {
+        juce::String name;
+        float drive, bass, mid, treble, presence, volume;
+    };
+}
+
+class ThunderforgeAudioProcessor : public juce::AudioProcessor
+{
+public:
+    ThunderforgeAudioProcessor();
+    ~ThunderforgeAudioProcessor() override;
+
+    // ... (standard methods)
+    void loadPreset (int index);
+    void triggerTestNote (bool play);
+    
+    float getPeakLevel() const noexcept { return peakLevel.load(); }
+    int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
+    juce::String getPresetName (int i) const;
+
+    void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+    void releaseResources() override;
+
+    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    juce::AudioProcessorEditor* createEditor() override;
+    bool hasEditor() const override { return true; }
+
+    const juce::String getName() const override { return JucePlugin_Name; }
+    bool acceptsMidi() const override { return false; }
+    bool producesMidi() const override { return false; }
+    bool isMidiEffect() const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
+
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram (int) override {}
+    const juce::String getProgramName (int) override { return {}; }
+    void changeProgramName (int, const juce::String&) override {}
+
+    void getStateInformation (juce::MemoryBlock& destData) override;
+    void setStateInformation (const void* data, int sizeInBytes) override;
+
+    juce::AudioProcessorValueTreeState apvts;
+
+private:
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    
+    // DSP Modules
+    thunderforge::NoiseGate noiseGate;
+    thunderforge::TubeScreamer tubeScreamer;
+    thunderforge::Compressor compressor;
+    thunderforge::ToneStack toneStack;
+    thunderforge::WaveShaper waveShaper;
+    thunderforge::NAMProcessor namProcessor;
+    thunderforge::CabinetSim cabinetSim;
+    thunderforge::StereoDelay delay;
+    thunderforge::PlateReverb reverb;
+    thunderforge::Chorus chorus;
+
+    // FFT / Metering
+    static constexpr int fftOrder = 10;
+    static constexpr int fftSize = 1 << fftOrder;
+    juce::dsp::FFT forwardFFT;
+    juce::dsp::WindowingFunction<float> window;
+    
+    std::array<float, fftSize> fifo;
+    std::array<float, fftSize * 2> fftBuffer;
+    int fifoIndex = 0;
+    bool nextFFTBlockReady = false;
+
+    std::vector<float> scopeData;
+    std::atomic<float> currentPeakHz { 0.0f };
+    std::atomic<float> peakLevel { 0.0f };
+    
+    std::mutex fftMutex;
+    
+    // Internal Test Oscillator
+    juce::dsp::Oscillator<float> testOsc;
+    bool isPlayingTestNote = false;
+    int currentPresetIndex = 0;
+    
+    void pushNextSampleIntoFifo (float sample) noexcept;
+    void performFFT();
+
+public:
+    void getNextFFTBlock (std::vector<float>& destData, float& peakHz)
+    {
+        std::lock_guard<std::mutex> lock (fftMutex);
+        destData = scopeData;
+        peakHz = currentPeakHz;
+    }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThunderforgeAudioProcessor)
+};

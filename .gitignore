@@ -1,0 +1,27 @@
+# Build Architecture
+build/
+bin/
+lib/
+obj/
+
+# JUCE Specific
+JUCE/
+/JuceLibraryCode/
+*.jucer
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.XCode
+.DS_Store
+
+# OS / Misc
+Thumbs.db
+*.log
+
+# Plugin Artefacts
+*.vst3
+*.au
+*.component
+*.app

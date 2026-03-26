@@ -1,0 +1,175 @@
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+
+ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor& p)
+    : AudioProcessorEditor (&p), audioProcessor (p)
+{
+    setLookAndFeel (&lookAndFeel);
+
+    addAndMakeVisible (lcd);
+    addAndMakeVisible (gateKnob);
+    addAndMakeVisible (compKnob);
+    addAndMakeVisible (gainKnob);
+    addAndMakeVisible (bassKnob);
+    addAndMakeVisible (midKnob);
+    addAndMakeVisible (trebleKnob);
+    addAndMakeVisible (delayKnob);
+    addAndMakeVisible (reverbKnob);
+    addAndMakeVisible (masterKnob);
+
+    addAndMakeVisible (testNoteButton);
+    addAndMakeVisible (prevButton);
+    addAndMakeVisible (nextButton);
+    addAndMakeVisible (presetLabel);
+
+    presetLabel.setJustificationType (juce::Justification::centred);
+    presetLabel.setFont (juce::FontOptions().withName ("JetBrains Mono").withHeight (14.0f));
+    presetLabel.setColour (juce::Label::textColourId, thunderforge::ThunderforgeLookAndFeel::aeroCyan);
+
+    prevButton.onClick = [this] {
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 4) % 5;
+        audioProcessor.loadPreset (nextIdx);
+    };
+
+    nextButton.onClick = [this] {
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
+        audioProcessor.loadPreset (nextIdx);
+    };
+
+    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
+    for (int i = 0; i < 5; ++i)
+    {
+        acdcButtons[i].setButtonText (acdcNames[i]);
+        addAndMakeVisible (acdcButtons[i]);
+        acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
+    }
+
+    testNoteButton.onStateChange = [this] { 
+        audioProcessor.triggerTestNote (testNoteButton.isMouseButtonDown()); 
+    };
+
+    gateAttachment   = std::make_unique<Attachment> (audioProcessor.apvts, "gate_threshold", gateKnob);
+    compAttachment   = std::make_unique<Attachment> (audioProcessor.apvts, "comp_threshold", compKnob);
+    gainAttachment   = std::make_unique<Attachment> (audioProcessor.apvts, "ts_drive", gainKnob);
+    bassAttachment   = std::make_unique<Attachment> (audioProcessor.apvts, "eq_bass", bassKnob);
+    midAttachment    = std::make_unique<Attachment> (audioProcessor.apvts, "eq_mid", midKnob);
+    trebleAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "eq_treble", trebleKnob);
+    delayAttachment  = std::make_unique<Attachment> (audioProcessor.apvts, "delay_mix", delayKnob);
+    reverbAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "reverb_mix", reverbKnob);
+    masterAttachment = std::make_unique<Attachment> (audioProcessor.apvts, "master_volume", masterKnob);
+
+    // Set slider names for LookAndFeel logic
+    gainKnob.setName ("Drive");
+
+    setSize (1100, 650);
+    startTimerHz (60);
+}
+
+ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
+{
+    setLookAndFeel (nullptr);
+}
+
+void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+    
+    // 1. Overall Chassis (Machined Metal Gradient)
+    juce::ColourGradient chassis (thunderforge::ThunderforgeLookAndFeel::aeroPanelLight, 0, 0,
+                                  thunderforge::ThunderforgeLookAndFeel::aeroDark, 0, bounds.getHeight(), false);
+    g.setGradientFill (chassis);
+    g.fillRoundedRectangle (bounds, 16.0f);
+    
+    // Subtle metal noise/texture could go here if we had an image, but we'll use a fine grid
+    g.setColour (juce::Colours::white.withAlpha (0.02f));
+    for (int i=0; i < bounds.getWidth(); i += 2)
+        g.drawVerticalLine (i, 0.0f, bounds.getHeight());
+
+    // 2. Bezel
+    g.setColour (thunderforge::ThunderforgeLookAndFeel::aeroBorder);
+    g.drawRoundedRectangle (bounds.reduced (1.0f), 16.0f, 2.0f);
+    
+    // 3. Header Text
+    auto headerArea = bounds.reduced (30, 20).removeFromTop (60);
+    lookAndFeel.drawHeader (g, headerArea.toNearestInt(), "AeroTone");
+}
+
+void ThunderforgeAudioProcessorEditor::resized()
+{
+    auto area = getLocalBounds().reduced (30, 25);
+    auto headerArea = area.removeFromTop (80);
+    
+    // LCD Layout
+    lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
+    
+    area.removeFromTop (24); // Gap
+    
+    // Modules Grid
+    auto moduleArea = area;
+    auto colW = moduleArea.getWidth() / 12;
+    
+    // 1. DYNAMICS Module (2 cols)
+    auto dynArea = moduleArea.removeFromLeft (colW * 2).reduced (4);
+    gateKnob.setBounds (dynArea.removeFromTop (dynArea.getHeight() / 2).withSizeKeepingCentre (75, 90).toNearestInt());
+    compKnob.setBounds (dynArea.withSizeKeepingCentre (75, 90).toNearestInt());
+    
+    // 2. PREAMP Module (2 cols)
+    auto preampArea = moduleArea.removeFromLeft (colW * 2).reduced (4);
+    gainKnob.setBounds (preampArea.withSizeKeepingCentre (90, 110).toNearestInt());
+    
+    // 3. EQ Module (4 cols)
+    auto eqArea = moduleArea.removeFromLeft (colW * 4).reduced (4);
+    auto knobW = eqArea.getWidth() / 3;
+    bassKnob.setBounds (eqArea.removeFromLeft (knobW).withSizeKeepingCentre (85, 105).toNearestInt());
+    midKnob.setBounds (eqArea.removeFromLeft (knobW).withSizeKeepingCentre (85, 105).toNearestInt());
+    trebleKnob.setBounds (eqArea.removeFromLeft (knobW).withSizeKeepingCentre (85, 105).toNearestInt());
+    
+    // 4. POST FX Module (2 cols)
+    auto fxArea = moduleArea.removeFromLeft (colW * 2).reduced (4);
+    delayKnob.setBounds (fxArea.removeFromTop (fxArea.getHeight() / 2).withSizeKeepingCentre (75, 90).toNearestInt());
+    reverbKnob.setBounds (fxArea.withSizeKeepingCentre (75, 90).toNearestInt());
+    
+    // 5. OUTPUT Module (2 cols)
+    auto outputArea = moduleArea.reduced (4);
+    masterKnob.setBounds (outputArea.withSizeKeepingCentre (90, 110).toNearestInt());
+    
+    // 6. PRESET VAULT & TEST NOTE (Bottom Row)
+    auto bottomArea = area.removeFromBottom (45);
+    testNoteButton.setBounds (bottomArea.removeFromLeft (100).reduced (5).toNearestInt());
+    
+    // Preset Nav Group
+    auto navArea = bottomArea.removeFromRight (250);
+    prevButton.setBounds (navArea.removeFromLeft (40).reduced (5).toNearestInt());
+    nextButton.setBounds (navArea.removeFromRight (40).reduced (5).toNearestInt());
+    presetLabel.setBounds (navArea.reduced (5).toNearestInt());
+
+    auto presetW = bottomArea.getWidth() / 5;
+    for (int i = 0; i < 5; ++i)
+        acdcButtons[i].setBounds (bottomArea.removeFromLeft (presetW).reduced (2).toNearestInt());
+}
+
+void ThunderforgeAudioProcessorEditor::timerCallback()
+{
+    // Update Visualizer
+    std::vector<float> fftBuffer;
+    float peakHz = 0.0f;
+    audioProcessor.getNextFFTBlock (fftBuffer, peakHz);
+    
+    if (! fftBuffer.empty())
+        lcd.pushNextFFTData (fftBuffer, peakHz);
+
+    // Update Knob Glows
+    float level = audioProcessor.getPeakLevel();
+    gateKnob.setLevel (level);
+    compKnob.setLevel (level);
+    gainKnob.setLevel (level);
+    bassKnob.setLevel (level);
+    midKnob.setLevel (level);
+    trebleKnob.setLevel (level);
+    delayKnob.setLevel (level);
+    reverbKnob.setLevel (level);
+    masterKnob.setLevel (level);
+
+    // Update Preset Label
+    presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
+}
