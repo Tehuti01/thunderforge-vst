@@ -3,7 +3,7 @@
 # LH Thunderforge - One-Command Installer
 set -e
 
-REPO_URL="https://github.com/username/rusty-ro-vst-3.git"
+REPO_URL="https://github.com/Tehuti01/thunderforge-vst.git"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     INSTALL_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
