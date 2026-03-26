@@ -2,7 +2,6 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include <lh_thunderforge/lh_thunderforge.h>
 
 ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -106,8 +105,9 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     
     // --- 300x TUBE GLOW ---
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
-    auto peak = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
+    auto peak     = audioProcessor.getPeakLevel();
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -200,8 +200,10 @@ void ThunderforgeAudioProcessorEditor::resized()
     delayKnob.setBounds (fxArea.removeFromTop (fxArea.getHeight() / 2).withSizeKeepingCentre (75, 90).toNearestInt());
     reverbKnob.setBounds (fxArea.withSizeKeepingCentre (75, 90).toNearestInt());
     
-    // 5. OUTPUT Module (2 cols)
+    // 5. OUTPUT & WIDTH Module (2 cols)
     auto outputArea = moduleArea.reduced (4);
+    auto outKnobW = outputArea.getWidth() / 2;
+    widthKnob.setBounds (outputArea.removeFromLeft (outKnobW).withSizeKeepingCentre (75, 90).toNearestInt());
     masterKnob.setBounds (outputArea.withSizeKeepingCentre (90, 110).toNearestInt());
     
     // 6. PRESET VAULT & TEST NOTE (Bottom Row)
@@ -239,6 +241,7 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
     trebleKnob.setLevel (level);
     delayKnob.setLevel (level);
     reverbKnob.setLevel (level);
+    widthKnob.setLevel (level);
     masterKnob.setLevel (level);
 
     // Update Meters

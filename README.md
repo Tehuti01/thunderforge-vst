@@ -1,37 +1,23 @@
-# ⚡️ LH Thunderforge
+# 🪐 AeroTone Thunderforge 300x Elite
 
-**LH Thunderforge** is an ultra high-end guitar amp simulator and neural modeler built with JUCE and NAM. It features a premium "AeroTone" machined hardware aesthetic and a real-time glass visualizer.
+**AeroTone Thunderforge 300x** is a world-class, infinitely expandable guitar modeling suite. It delivers hardware-parity neural amp simulations and boutique cabinet IR responses with a photorealistic glass "Aero-Refraction" UI.
 
-## 🚀 One-Command Install (macOS/Linux)
+## 🚀 One-Command Instant Start (macOS)
 
-To install LH Thunderforge and its dependencies, run this in your terminal:
+Run this in your terminal to automatically download, build, install, and **LAUNCH** the Elite Edition:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/username/rusty-ro-vst-3/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Tehuti01/thunderforge-vst/main/scripts/install.sh | bash
 ```
 
-## 🛠 Features
-- **Neural Amp Modeling (NAM)**: Integrated high-fidelity amp profiles.
-- **AeroTone UI**: Machined metal aesthetic with real-time spectrum analysis.
-- **Full Signal Chain**: Noise Gate, Tube Screamer, Compressor, EQ, Cabinet Sim, Delay, Reverb, and Chorus.
+## ⚡️ Elite Features
+- **300x Performance**: 4x Oversampling and ±20dB I/O Calibration for boutique-level headroom.
+- **Universal Snapshot Loader**: Thread-safe loading for any `.nam` hardware profile or `.wav` cabinet IR.
+- **Aero-Refraction UI**: Photorealistic glass visualizer with real-time FFT spectrum analysis.
+- **Massive Signal Chain**: Noise Gate, Tube Screamer, Compressor, EQ, Cabinet Sim, Delay, Reverb, Chorus, and Stereo Width.
 
-## 📦 Developer Setup
-
-### Prerequisites
-- **macOS**: Xcode Command Line Tools, CMake.
-- **Linux**: `build-essential`, `libasound2-dev`, `libjack-jackd2-dev`, `libx11-dev`, `libxcomposite-dev`, `libxcursor-dev`, `libxinerama-dev`, `libxrandr-dev`, `libmesa-dev`, `libfreetype6-dev`, `libcurl4-openssl-dev`.
-
-### Build Locally
-```bash
-cmake -B build
-cmake --build build -j 8
-```
-
-## 🔄 Updates
-To update to the latest version:
-```bash
-./scripts/update.sh
-```
+## 🏗 Modular Architecture
+Built on the **lh_thunderforge** heavy module protocol for professional scalability and 100% portable builds.
 
 ## ⚖️ License
-Proprietary / LH Thunderforge Protocol.
+Proprietary / Lukas Hansen Audio Protocol.

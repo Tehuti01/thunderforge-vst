@@ -40,6 +40,7 @@ void ThunderforgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     delay.prepare (spec);
     reverb.prepare (spec);
     chorus.prepare (spec);
+    cabinetIR.prepare (spec);
     
 }
 
@@ -284,7 +285,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     // Input Gain
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("input_gain", "Input Gain", juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f, 1.0f), 0.0f));
+    // I/O Section
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("input_gain", "Input Gain", -20.0f, 20.0f, 0.0f));
     
     // Noise Gate
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("gate_threshold", "Gate Threshold", juce::NormalisableRange<float> (-80.0f, 0.0f, 0.1f, 1.0f), -45.0f));
@@ -337,7 +339,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     params.push_back (std::make_unique<juce::AudioParameterBool> ("reverb_bypass", "Reverb Bypass", false));
 
     // I/O Gain
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("input_gain", "Input Gain", -20.0f, 20.0f, 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("output_gain", "Output Gain", -20.0f, 20.0f, 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("stereo_width", "Stereo Width", 0.0f, 200.0f, 100.0f));
 
