@@ -21,6 +21,11 @@ else
     INSTALL_DIR="$HOME/.vst3"
 fi
 echo "📦 Refreshing VST3..."
-cp -R "Thunderforge_artefacts/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+
+if [ -d "Thunderforge_artefacts/Release/VST3" ]; then
+    cp -R "Thunderforge_artefacts/Release/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+elif [ -d "Thunderforge_artefacts/VST3" ]; then
+    cp -R "Thunderforge_artefacts/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+fi
 
 echo "✅ Update Complete!"

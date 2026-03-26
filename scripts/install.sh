@@ -35,10 +35,25 @@ cmake --build . --target Thunderforge_VST3 -j$(sysctl -n hw.ncpu)
 INSTALL_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
 mkdir -p "$INSTALL_DIR"
 echo "📦 Installing VST3 to $INSTALL_DIR..."
-cp -R "Thunderforge_artefacts/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+
+# Check common artifact locations (Release or root)
+if [ -d "Thunderforge_artefacts/Release/VST3" ]; then
+    cp -R "Thunderforge_artefacts/Release/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+    SC_APP="Thunderforge_artefacts/Release/Standalone/LH Thunderforge.app"
+elif [ -d "Thunderforge_artefacts/VST3" ]; then
+    cp -R "Thunderforge_artefacts/VST3/LH Thunderforge.vst3" "$INSTALL_DIR/"
+    SC_APP="Thunderforge_artefacts/Standalone/LH Thunderforge.app"
+else
+    echo "⚠️ VST3 artifact not found in expected locations."
+fi
 
 echo "✅ Deployment Complete!"
 
 # 5. Immediate Startup
-echo "🚀 Launching AeroTone Thunderforge 300x Elite..."
-open "Thunderforge_artefacts/Standalone/LH Thunderforge.app"
+if [ -d "$SC_APP" ]; then
+    echo "🚀 Launching AeroTone Thunderforge 300x Elite..."
+    open "$SC_APP"
+else
+    echo "🚀 Launching from system..."
+    open -a "LH Thunderforge" || echo "⚠️ Could not launch app automatically."
+fi
