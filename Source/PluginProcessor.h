@@ -56,7 +56,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -119,6 +119,20 @@ private:
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
     
+    juce::MidiKeyboardState midiState;
+
+    // Caches for fast access in processBlock
+    juce::RangedAudioParameter* gateThreshParam = nullptr;
+    juce::RangedAudioParameter* compThreshParam = nullptr;
+    juce::RangedAudioParameter* tsDriveParam = nullptr;
+    juce::RangedAudioParameter* eqBassParam = nullptr;
+    juce::RangedAudioParameter* eqMidParam = nullptr;
+    juce::RangedAudioParameter* eqTrebleParam = nullptr;
+    juce::RangedAudioParameter* delayMixParam = nullptr;
+    juce::RangedAudioParameter* reverbMixParam = nullptr;
+    juce::RangedAudioParameter* stereoWidthParam = nullptr;
+    juce::RangedAudioParameter* outputGainParam = nullptr;
+
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
 
