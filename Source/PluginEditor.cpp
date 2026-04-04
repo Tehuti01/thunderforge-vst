@@ -41,10 +41,9 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
     for (int i = 0; i < 5; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        acdcButtons[i].setButtonText (audioProcessor.getPresetName(i));
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
@@ -107,7 +106,17 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Base glow from drive, peak, and width
+    auto baseGlow = driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f;
+
+    // Slow pulse
+    auto slowPulse = 0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005);
+
+    // Fast thermal flicker, intensity scaled by drive
+    auto flicker = 1.0f + (driveVal * 0.15f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.04));
+
+    auto glowAlpha = baseGlow * slowPulse * flicker;
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);

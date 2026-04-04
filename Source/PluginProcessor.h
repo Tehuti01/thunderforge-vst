@@ -11,16 +11,10 @@
 #include "DSP/StereoDelay.h"
 #include "DSP/PlateReverb.h"
 #include "DSP/Chorus.h"
+#include "PresetManager.h"
 
 #include <queue>
 #include <mutex>
-
-namespace thunderforge {
-    struct Preset {
-        juce::String name;
-        float drive, bass, mid, treble, presence, volume;
-    };
-}
 
 class ThunderforgeAudioProcessor : public juce::AudioProcessor
 {
@@ -86,6 +80,8 @@ private:
     thunderforge::StereoDelay delay;
     thunderforge::PlateReverb reverb;
     thunderforge::Chorus chorus;
+
+    thunderforge::PresetManager presetManager;
 
     // FFT / Metering
     static constexpr int fftOrder = 10;
