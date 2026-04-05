@@ -37,14 +37,14 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     };
 
     nextButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % audioProcessor.getNumPresets();
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
-    for (int i = 0; i < 5; ++i)
+    int numPresets = std::min(5, audioProcessor.getNumPresets());
+    for (int i = 0; i < numPresets; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        acdcButtons[i].setButtonText (audioProcessor.getPresetShortName(i));
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
