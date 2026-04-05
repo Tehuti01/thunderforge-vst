@@ -353,16 +353,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
 
 void ThunderforgeAudioProcessor::loadPreset (int index)
 {
-    struct P { float d, b, m, t, p, v; };
-    static const P acdc[] = {
-        { 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f }, // Back in Black
-        { 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f }, // Highway to Hell
-        { 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f }, // Thunderstruck
-        { 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f }, // Hells Bells
-        { 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f }  // Shook Me
-    };
-
-    if (index >= 0 && index < 5)
+    if (index >= 0 && index < presetManager.getNumPresets())
     {
         auto setParam = [this] (auto id, float val, float min, float max) {
             auto range = apvts.getParameterRange (id);
@@ -370,12 +361,13 @@ void ThunderforgeAudioProcessor::loadPreset (int index)
             apvts.getParameter (id)->setValueNotifyingHost (norm);
         };
 
-        setParam ("ts_drive", acdc[index].d * 10.0f, 0.0f, 100.0f);
-        setParam ("eq_bass", acdc[index].b, 0.0f, 10.0f);
-        setParam ("eq_mid", acdc[index].m, 0.0f, 10.0f);
-        setParam ("eq_treble", acdc[index].t, 0.0f, 10.0f);
-        setParam ("eq_presence", acdc[index].p, 0.0f, 10.0f);
-        setParam ("master_volume", acdc[index].v, -60.0f, 12.0f);
+        const auto& p = presetManager.getPreset(index);
+        setParam ("ts_drive", p.drive, 0.0f, 100.0f);
+        setParam ("eq_bass", p.bass, 0.0f, 10.0f);
+        setParam ("eq_mid", p.mid, 0.0f, 10.0f);
+        setParam ("eq_treble", p.treble, 0.0f, 10.0f);
+        setParam ("eq_presence", p.presence, 0.0f, 10.0f);
+        setParam ("master_volume", p.volume, -60.0f, 12.0f);
         
         currentPresetIndex = index;
     }
@@ -383,9 +375,17 @@ void ThunderforgeAudioProcessor::loadPreset (int index)
 
 juce::String ThunderforgeAudioProcessor::getPresetName (int index) const
 {
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY TO HELL", "THUNDERSTRUCK", "HELLS BELLS", "YOU SHOOK ME" };
-    if (index >= 0 && index < 5) return acdcNames[index];
-    return "USER PRESET";
+    return presetManager.getPreset(index).name;
+}
+
+juce::String ThunderforgeAudioProcessor::getPresetShortName (int index) const
+{
+    return presetManager.getPreset(index).shortName;
+}
+
+int ThunderforgeAudioProcessor::getNumPresets() const
+{
+    return presetManager.getNumPresets();
 }
 
 void ThunderforgeAudioProcessor::triggerTestNote (bool play)
