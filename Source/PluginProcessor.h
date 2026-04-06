@@ -118,6 +118,12 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+
+public:
+    std::vector<thunderforge::Preset> presets;
+    void loadPresetsFromJSON (const juce::File& file);
+    void savePresetsToJSON (const juce::File& file);
+    juce::File getPresetsFile() const;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
