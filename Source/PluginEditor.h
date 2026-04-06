@@ -32,7 +32,7 @@ private:
 
     thunderforge::LCDComponent lcd;
     
-    juce::TextButton acdcButtons[5];
+    std::vector<std::unique_ptr<juce::TextButton>> presetButtons;
     juce::TextButton prevButton { "<" };
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
