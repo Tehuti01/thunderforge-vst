@@ -66,6 +66,7 @@ target_link_libraries(Thunderforge PRIVATE
 target_compile_definitions(Thunderforge PRIVATE
     JUCE_VST2_CAN_REPLACE_VST3=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_CURL=0
 )
 
 juce_generate_juce_header(Thunderforge)

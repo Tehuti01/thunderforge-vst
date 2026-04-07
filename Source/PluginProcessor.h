@@ -118,6 +118,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    juce::var presetManagerData;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
