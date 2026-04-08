@@ -11,6 +11,10 @@ add_subdirectory(JUCE)
 # NeuralAmpModelerCore uses CPM so it might download Eigen itself.
 add_subdirectory(modules/NeuralAmpModelerCore)
 
+juce_add_binary_data(ThunderforgeBinaryData
+    SOURCES Source/presets.json
+)
+
 juce_add_plugin(Thunderforge
     COMPANY_NAME "Lukas Hansen Audio"
     IS_SYNTH FALSE
@@ -61,11 +65,13 @@ target_link_libraries(Thunderforge PRIVATE
     juce::juce_opengl
     lh_thunderforge
     NAM_Core
+    ThunderforgeBinaryData
 )
 
 target_compile_definitions(Thunderforge PRIVATE
     JUCE_VST2_CAN_REPLACE_VST3=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_CURL=0
 )
 
 juce_generate_juce_header(Thunderforge)
