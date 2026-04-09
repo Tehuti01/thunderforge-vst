@@ -1,0 +1,54 @@
+{
+  "presets": [
+    {
+      "name": "BACK IN BLACK",
+      "short_name": "BACK IN BLACK",
+      "ts_drive": 75.0,
+      "eq_bass": 5.0,
+      "eq_mid": 8.5,
+      "eq_treble": 5.0,
+      "eq_presence": 6.0,
+      "master_volume": -4.0
+    },
+    {
+      "name": "HIGHWAY TO HELL",
+      "short_name": "HIGHWAY",
+      "ts_drive": 65.0,
+      "eq_bass": 6.0,
+      "eq_mid": 7.0,
+      "eq_treble": 6.0,
+      "eq_presence": 5.0,
+      "master_volume": -4.0
+    },
+    {
+      "name": "THUNDERSTRUCK",
+      "short_name": "THUNDER",
+      "ts_drive": 85.0,
+      "eq_bass": 8.0,
+      "eq_mid": 6.0,
+      "eq_treble": 8.0,
+      "eq_presence": 7.0,
+      "master_volume": -2.0
+    },
+    {
+      "name": "HELLS BELLS",
+      "short_name": "HELLS BELLS",
+      "ts_drive": 45.0,
+      "eq_bass": 5.0,
+      "eq_mid": 8.0,
+      "eq_treble": 3.0,
+      "eq_presence": 2.0,
+      "master_volume": -1.0
+    },
+    {
+      "name": "YOU SHOOK ME",
+      "short_name": "SHOOK ME",
+      "ts_drive": 60.0,
+      "eq_bass": 4.0,
+      "eq_mid": 7.5,
+      "eq_treble": 7.0,
+      "eq_presence": 6.0,
+      "master_volume": -3.0
+    }
+  ]
+}

@@ -46,6 +46,13 @@ target_include_directories(NAM_Core PUBLIC
 )
 
 # Main Plugin sources
+juce_add_binary_data(Thunderforge_BinaryData
+    HEADER_NAME "BinaryData.h"
+    NAMESPACE "BinaryData"
+    SOURCES
+    Source/Data/presets.json
+)
+
 target_sources(Thunderforge PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
@@ -61,11 +68,13 @@ target_link_libraries(Thunderforge PRIVATE
     juce::juce_opengl
     lh_thunderforge
     NAM_Core
+    Thunderforge_BinaryData
 )
 
 target_compile_definitions(Thunderforge PRIVATE
     JUCE_VST2_CAN_REPLACE_VST3=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_CURL=0
 )
 
 juce_generate_juce_header(Thunderforge)

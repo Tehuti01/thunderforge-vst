@@ -35,6 +35,8 @@ public:
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
+    juce::String getPresetShortName (int index) const;
+    int getNumPresets() const { return (int)loadedPresets.size(); }
     float getInputLevel() const noexcept { return inputLevel.load(); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
 
@@ -73,6 +75,19 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    struct Preset {
+        juce::String name;
+        juce::String shortName;
+        float drive;
+        float bass;
+        float mid;
+        float treble;
+        float presence;
+        float masterVolume;
+    };
+    std::vector<Preset> loadedPresets;
+    void loadPresetsFromJson();
+
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     
     // DSP Modules
