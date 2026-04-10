@@ -18,6 +18,7 @@
 namespace thunderforge {
     struct Preset {
         juce::String name;
+        juce::String shortName;
         float drive, bass, mid, treble, presence, volume;
     };
 }
@@ -29,12 +30,16 @@ public:
     ~ThunderforgeAudioProcessor() override;
 
     // ... (standard methods)
+    void loadPresetsFromJSON();
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
+    juce::String getPresetShortName (int i) const;
+
+    std::vector<thunderforge::Preset> presets;
     float getInputLevel() const noexcept { return inputLevel.load(); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
 

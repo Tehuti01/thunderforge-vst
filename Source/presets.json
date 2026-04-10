@@ -1,0 +1,52 @@
+[
+  {
+    "name": "BACK IN BLACK",
+    "shortName": "BACK IN BLACK",
+    "drive": 7.5,
+    "bass": 5.0,
+    "mid": 8.5,
+    "treble": 5.0,
+    "presence": 6.0,
+    "volume": -4.0
+  },
+  {
+    "name": "HIGHWAY TO HELL",
+    "shortName": "HIGHWAY",
+    "drive": 6.5,
+    "bass": 6.0,
+    "mid": 7.0,
+    "treble": 6.0,
+    "presence": 5.0,
+    "volume": -4.0
+  },
+  {
+    "name": "THUNDERSTRUCK",
+    "shortName": "THUNDER",
+    "drive": 8.5,
+    "bass": 8.0,
+    "mid": 6.0,
+    "treble": 8.0,
+    "presence": 7.0,
+    "volume": -2.0
+  },
+  {
+    "name": "HELLS BELLS",
+    "shortName": "HELLS BELLS",
+    "drive": 4.5,
+    "bass": 5.0,
+    "mid": 8.0,
+    "treble": 3.0,
+    "presence": 2.0,
+    "volume": -1.0
+  },
+  {
+    "name": "YOU SHOOK ME",
+    "shortName": "SHOOK ME",
+    "drive": 6.0,
+    "bass": 4.0,
+    "mid": 7.5,
+    "treble": 7.0,
+    "presence": 6.0,
+    "volume": -3.0
+  }
+]

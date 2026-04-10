@@ -32,21 +32,28 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     presetLabel.setColour (juce::Label::textColourId, thunderforge::ThunderforgeLookAndFeel::aeroCyan);
 
     prevButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 4) % 5;
-        audioProcessor.loadPreset (nextIdx);
+        int size = (int) audioProcessor.presets.size();
+        if (size > 0)
+        {
+            int nextIdx = (audioProcessor.getCurrentPresetIndex() + size - 1) % size;
+            audioProcessor.loadPreset (nextIdx);
+        }
     };
 
     nextButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
-        audioProcessor.loadPreset (nextIdx);
+        int size = (int) audioProcessor.presets.size();
+        if (size > 0)
+        {
+            int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % size;
+            audioProcessor.loadPreset (nextIdx);
+        }
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < audioProcessor.presets.size(); ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
-        addAndMakeVisible (acdcButtons[i]);
-        acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
+        auto* btn = presetButtons.add (new juce::TextButton (audioProcessor.getPresetShortName(i)));
+        addAndMakeVisible (btn);
+        btn->onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
 
     testNoteButton.onStateChange = [this] { 
@@ -216,9 +223,13 @@ void ThunderforgeAudioProcessorEditor::resized()
     nextButton.setBounds (navArea.removeFromRight (40).reduced (5).toNearestInt());
     presetLabel.setBounds (navArea.reduced (5).toNearestInt());
 
-    auto presetW = bottomArea.getWidth() / 5;
-    for (int i = 0; i < 5; ++i)
-        acdcButtons[i].setBounds (bottomArea.removeFromLeft (presetW).reduced (2).toNearestInt());
+    int numPresets = presetButtons.size();
+    if (numPresets > 0)
+    {
+        auto presetW = bottomArea.getWidth() / numPresets;
+        for (int i = 0; i < numPresets; ++i)
+            presetButtons[i]->setBounds (bottomArea.removeFromLeft (presetW).reduced (2).toNearestInt());
+    }
 }
 
 void ThunderforgeAudioProcessorEditor::timerCallback()
