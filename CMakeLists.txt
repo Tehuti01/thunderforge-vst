@@ -55,17 +55,24 @@ target_include_directories(Thunderforge PRIVATE
     Source
 )
 
+juce_add_binary_data(PresetsData
+    SOURCES
+        Source/presets.json
+)
+
 target_link_libraries(Thunderforge PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_opengl
     lh_thunderforge
     NAM_Core
+    PresetsData
 )
 
 target_compile_definitions(Thunderforge PRIVATE
     JUCE_VST2_CAN_REPLACE_VST3=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_CURL=0
 )
 
 juce_generate_juce_header(Thunderforge)
