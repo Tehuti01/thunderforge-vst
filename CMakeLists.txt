@@ -45,6 +45,13 @@ target_include_directories(NAM_Core PUBLIC
     modules/NeuralAmpModelerCore/Dependencies/AudioDSPTools/Dependencies/nlohmann
 )
 
+juce_add_binary_data(Thunderforge_BinaryData
+    HEADER_NAME BinaryData.h
+    NAMESPACE BinaryData
+    SOURCES
+        Source/presets.json
+)
+
 # Main Plugin sources
 target_sources(Thunderforge PRIVATE
     Source/PluginProcessor.cpp
@@ -55,7 +62,8 @@ target_include_directories(Thunderforge PRIVATE
     Source
 )
 
-target_link_libraries(Thunderforge PRIVATE
+target_link_libraries(Thunderforge PRIVATE curl
+    Thunderforge_BinaryData
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_opengl
