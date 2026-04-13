@@ -69,3 +69,12 @@ target_compile_definitions(Thunderforge PRIVATE
 )
 
 juce_generate_juce_header(Thunderforge)
+
+juce_add_binary_data(Thunderforge_BinaryData
+    HEADER_NAME "BinaryData.h"
+    NAMESPACE BinaryData
+    SOURCES
+        presets.json
+)
+
+target_link_libraries(Thunderforge PRIVATE Thunderforge_BinaryData curl)
