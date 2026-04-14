@@ -51,6 +51,8 @@ target_sources(Thunderforge PRIVATE
     Source/PluginEditor.cpp
 )
 
+juce_add_binary_data(PresetData SOURCES presets.json)
+
 target_include_directories(Thunderforge PRIVATE
     Source
 )
@@ -61,6 +63,8 @@ target_link_libraries(Thunderforge PRIVATE
     juce::juce_opengl
     lh_thunderforge
     NAM_Core
+    PresetData
+    curl
 )
 
 target_compile_definitions(Thunderforge PRIVATE
