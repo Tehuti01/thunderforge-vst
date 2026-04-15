@@ -69,3 +69,4 @@ target_compile_definitions(Thunderforge PRIVATE
 )
 
 juce_generate_juce_header(Thunderforge)
+target_link_libraries(Thunderforge PRIVATE curl)
