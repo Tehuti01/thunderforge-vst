@@ -119,6 +119,9 @@ private:
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
     
+    std::vector<thunderforge::Preset> loadedPresets;
+    void loadPresetsFromJson();
+
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
 
