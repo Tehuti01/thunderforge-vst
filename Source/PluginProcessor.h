@@ -32,6 +32,9 @@ public:
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
+    int getNumPresets() const noexcept { return presets.size(); }
+    void loadPresets();
+    void savePresets();
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
@@ -111,6 +114,7 @@ private:
     juce::String currentIRName { "4x12 V30" };
 
     std::mutex fftMutex;
+    std::vector<thunderforge::Preset> presets;
     
     // Internal Test Oscillator / DSP Helpers
     juce::dsp::Oscillator<float> testOsc;

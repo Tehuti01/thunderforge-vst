@@ -61,6 +61,7 @@ target_link_libraries(Thunderforge PRIVATE
     juce::juce_opengl
     lh_thunderforge
     NAM_Core
+    curl
 )
 
 target_compile_definitions(Thunderforge PRIVATE
