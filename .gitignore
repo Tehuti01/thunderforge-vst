@@ -25,3 +25,4 @@ Thumbs.db
 *.au
 *.component
 *.app
+build_test/
