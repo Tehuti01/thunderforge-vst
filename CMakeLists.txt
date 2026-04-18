@@ -56,6 +56,8 @@ target_include_directories(Thunderforge PRIVATE
 )
 
 target_link_libraries(Thunderforge PRIVATE
+    curl
+
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_opengl
