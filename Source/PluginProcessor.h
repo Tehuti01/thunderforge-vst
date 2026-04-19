@@ -32,6 +32,10 @@ public:
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
+    void loadPresetsFromJSON();
+    void savePresetsToJSON();
+    int getNumPresets() const noexcept { return static_cast<int>(presets.size()); }
+
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
@@ -118,6 +122,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    std::vector<thunderforge::Preset> presets;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
