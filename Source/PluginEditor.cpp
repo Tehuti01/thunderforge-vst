@@ -32,19 +32,26 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     presetLabel.setColour (juce::Label::textColourId, thunderforge::ThunderforgeLookAndFeel::aeroCyan);
 
     prevButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 4) % 5;
-        audioProcessor.loadPreset (nextIdx);
+        int numPresets = audioProcessor.getPresetManager().getNumPresets();
+        if (numPresets > 0) {
+            int nextIdx = (audioProcessor.getCurrentPresetIndex() + numPresets - 1) % numPresets;
+            audioProcessor.loadPreset (nextIdx);
+        }
     };
 
     nextButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
-        audioProcessor.loadPreset (nextIdx);
+        int numPresets = audioProcessor.getPresetManager().getNumPresets();
+        if (numPresets > 0) {
+            int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % numPresets;
+            audioProcessor.loadPreset (nextIdx);
+        }
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
     for (int i = 0; i < 5; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        juce::String presetName = audioProcessor.getPresetManager().getPreset(i).name;
+        if (presetName.isEmpty()) presetName = "PRESET " + juce::String(i + 1);
+        acdcButtons[i].setButtonText (presetName);
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }

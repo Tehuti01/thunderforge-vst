@@ -49,6 +49,7 @@ target_include_directories(NAM_Core PUBLIC
 target_sources(Thunderforge PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/Core/PresetManager.cpp
 )
 
 target_include_directories(Thunderforge PRIVATE
@@ -69,3 +70,8 @@ target_compile_definitions(Thunderforge PRIVATE
 )
 
 juce_generate_juce_header(Thunderforge)
+
+if (LINUX)
+    target_link_libraries(Thunderforge_Standalone PRIVATE curl)
+    target_link_libraries(Thunderforge_VST3 PRIVATE curl)
+endif()
