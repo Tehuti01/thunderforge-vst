@@ -32,19 +32,18 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     presetLabel.setColour (juce::Label::textColourId, thunderforge::ThunderforgeLookAndFeel::aeroCyan);
 
     prevButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 4) % 5;
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + audioProcessor.loadedPresets.size() - 1) % audioProcessor.loadedPresets.size();
         audioProcessor.loadPreset (nextIdx);
     };
 
     nextButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % audioProcessor.loadedPresets.size();
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
     for (int i = 0; i < 5; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        acdcButtons[i].setButtonText (audioProcessor.getPresetName(i));
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }

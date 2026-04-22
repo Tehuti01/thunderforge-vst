@@ -29,6 +29,8 @@ public:
     ~ThunderforgeAudioProcessor() override;
 
     // ... (standard methods)
+    void initializePresets();
+    void savePresets();
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
@@ -48,6 +50,8 @@ public:
     void loadCabinetIR (const juce::File& file);
     juce::String getLoadedNAMName() const { return currentNAMName; }
     juce::String getLoadedIRName() const { return currentIRName; }
+
+    std::vector<thunderforge::Preset> loadedPresets;
 
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
