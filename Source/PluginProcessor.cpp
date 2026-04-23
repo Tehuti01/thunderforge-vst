@@ -10,6 +10,7 @@ ThunderforgeAudioProcessor::ThunderforgeAudioProcessor()
       forwardFFT (fftOrder),
       window (fftSize, juce::dsp::WindowingFunction<float>::hann)
 {
+    loadPresetsFromJSON();
     testOsc.setFrequency (110.0f); // A2 string
     testOsc.initialise ([] (float x) { return std::sin (x) > 0.0 ? 0.3f : -0.3f; }); // Rect for harmonics
 }
@@ -141,8 +142,6 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     reverb.process (buffer);
     chorus.process (buffer);
 
-    // Master Volume
-    float masterVolDb = *apvts.getRawParameterValue ("master_volume");
     // --- CABINET IR ---
     bool cabinetBypass = *apvts.getRawParameterValue ("bypass_cabinet");
     if (!cabinetBypass)
@@ -322,6 +321,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     // Cabinet
     params.push_back (std::make_unique<juce::AudioParameterInt> ("cab_model", "Cab Model", 0, 255, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("cab_mix", "Cab Mix", 0.0f, 100.0f, 100.0f));
+    params.push_back (std::make_unique<juce::AudioParameterBool> ("bypass_cabinet", "Bypass Cabinet", false));
 
     // Delay
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("delay_time", "Delay Time", 1.0f, 2000.0f, 375.0f));
@@ -351,18 +351,81 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     return { params.begin(), params.end() };
 }
 
+void ThunderforgeAudioProcessor::loadPresetsFromJSON()
+{
+    juce::File presetFile = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                .getChildFile ("Lukas Hansen Audio")
+                                .getChildFile ("LH Thunderforge")
+                                .getChildFile ("presets.json");
+
+    presets.clear();
+
+    if (presetFile.existsAsFile())
+    {
+        juce::var parsedJson = juce::JSON::parse (presetFile);
+        if (parsedJson.isArray())
+        {
+            auto* array = parsedJson.getArray();
+            for (auto& item : *array)
+            {
+                if (item.isObject())
+                {
+                    thunderforge::Preset p;
+                    p.name = item["name"].toString();
+                    p.drive = static_cast<float> (static_cast<double> (item["drive"]));
+                    p.bass = static_cast<float> (static_cast<double> (item["bass"]));
+                    p.mid = static_cast<float> (static_cast<double> (item["mid"]));
+                    p.treble = static_cast<float> (static_cast<double> (item["treble"]));
+                    p.presence = static_cast<float> (static_cast<double> (item["presence"]));
+                    p.volume = static_cast<float> (static_cast<double> (item["volume"]));
+                    presets.push_back (p);
+                }
+            }
+        }
+    }
+
+    if (presets.empty())
+    {
+        presets.push_back ({ "BACK IN BLACK", 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f });
+        presets.push_back ({ "HIGHWAY", 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f });
+        presets.push_back ({ "THUNDER", 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f });
+        presets.push_back ({ "HELLS BELLS", 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f });
+        presets.push_back ({ "SHOOK ME", 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f });
+        savePresetsToJSON();
+    }
+}
+
+void ThunderforgeAudioProcessor::savePresetsToJSON()
+{
+    juce::File presetFile = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                .getChildFile ("Lukas Hansen Audio")
+                                .getChildFile ("LH Thunderforge")
+                                .getChildFile ("presets.json");
+
+    presetFile.getParentDirectory().createDirectory();
+
+    juce::Array<juce::var> array;
+
+    for (const auto& p : presets)
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty ("name", p.name);
+        obj->setProperty ("drive", static_cast<double> (p.drive));
+        obj->setProperty ("bass", static_cast<double> (p.bass));
+        obj->setProperty ("mid", static_cast<double> (p.mid));
+        obj->setProperty ("treble", static_cast<double> (p.treble));
+        obj->setProperty ("presence", static_cast<double> (p.presence));
+        obj->setProperty ("volume", static_cast<double> (p.volume));
+        array.add (juce::var (obj.get()));
+    }
+
+    juce::String jsonString = juce::JSON::toString (array);
+    presetFile.replaceWithText (jsonString);
+}
+
 void ThunderforgeAudioProcessor::loadPreset (int index)
 {
-    struct P { float d, b, m, t, p, v; };
-    static const P acdc[] = {
-        { 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f }, // Back in Black
-        { 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f }, // Highway to Hell
-        { 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f }, // Thunderstruck
-        { 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f }, // Hells Bells
-        { 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f }  // Shook Me
-    };
-
-    if (index >= 0 && index < 5)
+    if (index >= 0 && index < (int)presets.size())
     {
         auto setParam = [this] (auto id, float val, float min, float max) {
             auto range = apvts.getParameterRange (id);
@@ -370,12 +433,12 @@ void ThunderforgeAudioProcessor::loadPreset (int index)
             apvts.getParameter (id)->setValueNotifyingHost (norm);
         };
 
-        setParam ("ts_drive", acdc[index].d * 10.0f, 0.0f, 100.0f);
-        setParam ("eq_bass", acdc[index].b, 0.0f, 10.0f);
-        setParam ("eq_mid", acdc[index].m, 0.0f, 10.0f);
-        setParam ("eq_treble", acdc[index].t, 0.0f, 10.0f);
-        setParam ("eq_presence", acdc[index].p, 0.0f, 10.0f);
-        setParam ("master_volume", acdc[index].v, -60.0f, 12.0f);
+        setParam ("ts_drive", presets[index].drive * 10.0f, 0.0f, 100.0f);
+        setParam ("eq_bass", presets[index].bass, 0.0f, 10.0f);
+        setParam ("eq_mid", presets[index].mid, 0.0f, 10.0f);
+        setParam ("eq_treble", presets[index].treble, 0.0f, 10.0f);
+        setParam ("eq_presence", presets[index].presence, 0.0f, 10.0f);
+        setParam ("output_gain", presets[index].volume, -20.0f, 20.0f);
         
         currentPresetIndex = index;
     }
@@ -383,8 +446,7 @@ void ThunderforgeAudioProcessor::loadPreset (int index)
 
 juce::String ThunderforgeAudioProcessor::getPresetName (int index) const
 {
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY TO HELL", "THUNDERSTRUCK", "HELLS BELLS", "YOU SHOOK ME" };
-    if (index >= 0 && index < 5) return acdcNames[index];
+    if (index >= 0 && index < (int)presets.size()) return presets[index].name;
     return "USER PRESET";
 }
 
