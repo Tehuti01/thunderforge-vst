@@ -29,11 +29,14 @@ public:
     ~ThunderforgeAudioProcessor() override;
 
     // ... (standard methods)
+    void loadPresetsFromJSON();
+    void savePresetsToJSON();
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
+    int getNumPresets() const { return presets.size(); }
     juce::String getPresetName (int i) const;
     float getInputLevel() const noexcept { return inputLevel.load(); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
@@ -118,6 +121,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    std::vector<thunderforge::Preset> presets;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
