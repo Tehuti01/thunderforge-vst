@@ -37,8 +37,10 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+    juce::TextButton loadNAMButton { "IMPORT AMP" };
+    juce::TextButton loadIRButton { "IMPORT CAB" };
+    juce::ComboBox namSelector;
+    juce::ComboBox irSelector;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;

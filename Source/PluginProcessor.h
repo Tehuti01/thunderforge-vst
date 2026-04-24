@@ -14,6 +14,7 @@
 
 #include <queue>
 #include <mutex>
+#include <map>
 
 namespace thunderforge {
     struct Preset {
@@ -70,6 +71,9 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    void loadPresetsFromJson();
+    void savePreset(const thunderforge::Preset& preset);
+
     juce::AudioProcessorValueTreeState apvts;
 
 private:
@@ -111,6 +115,11 @@ private:
     juce::String currentIRName { "4x12 V30" };
 
     std::mutex fftMutex;
+    std::map<int, juce::String> midiCCMapping;
+    juce::MidiKeyboardState keyboardState;
+public:
+    juce::MidiKeyboardState& getKeyboardState() { return keyboardState; }
+private:
     
     // Internal Test Oscillator / DSP Helpers
     juce::dsp::Oscillator<float> testOsc;
@@ -118,6 +127,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    std::vector<thunderforge::Preset> loadedPresets;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();

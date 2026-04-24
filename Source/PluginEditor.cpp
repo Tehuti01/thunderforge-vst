@@ -67,26 +67,100 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
+    addAndMakeVisible (namSelector);
+    namSelector.setTextWhenNothingSelected("Select NAM");
     addAndMakeVisible (loadNAMButton);
+    addAndMakeVisible (irSelector);
+    irSelector.setTextWhenNothingSelected("Select IR");
     addAndMakeVisible (loadIRButton);
 
-    loadNAMButton.onClick = [this] {
+
+
+    auto refreshNAMs = [this]() {
+        namSelector.clear();
+        juce::File namDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Lukas Hansen Audio/LH Thunderforge/NAMs");
+        if (!namDir.exists()) namDir.createDirectory();
+        auto namFiles = namDir.findChildFiles(juce::File::findFiles, false, "*.nam");
+
+        for (int i = 0; i < namFiles.size(); ++i) {
+            namSelector.addItem(namFiles[i].getFileName(), i + 1);
+            if (namFiles[i].getFileName() == audioProcessor.getLoadedNAMName()) {
+                namSelector.setSelectedId(i + 1, juce::dontSendNotification);
+            }
+        }
+    };
+
+    auto refreshIRs = [this]() {
+        irSelector.clear();
+        juce::File irDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Lukas Hansen Audio/LH Thunderforge/IRs");
+        if (!irDir.exists()) irDir.createDirectory();
+        auto irFiles = irDir.findChildFiles(juce::File::findFiles, false, "*.wav");
+
+        for (int i = 0; i < irFiles.size(); ++i) {
+            irSelector.addItem(irFiles[i].getFileName(), i + 1);
+            if (irFiles[i].getFileName() == audioProcessor.getLoadedIRName()) {
+                irSelector.setSelectedId(i + 1, juce::dontSendNotification);
+            }
+        }
+    };
+    refreshNAMs();
+
+    namSelector.onChange = [this] {
+        juce::File namDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Lukas Hansen Audio/LH Thunderforge/NAMs");
+        auto namFiles = namDir.findChildFiles(juce::File::findFiles, false, "*.nam");
+        int index = namSelector.getSelectedItemIndex();
+        if (index >= 0 && index < namFiles.size()) {
+            audioProcessor.loadNAMModel(namFiles[index]);
+        }
+    };
+
+    loadNAMButton.onClick = [this, refreshNAMs] {
         chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
         auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
+        chooser->launchAsync (flags, [this, refreshNAMs] (const juce::FileChooser& fc) {
             auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
+            if (file.existsAsFile()) {
+                juce::File namDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                    .getChildFile("Lukas Hansen Audio/LH Thunderforge/NAMs");
+                file.copyFileTo(namDir.getChildFile(file.getFileName()));
+                audioProcessor.loadNAMModel(namDir.getChildFile(file.getFileName()));
+                refreshNAMs();
+            }
         });
     };
 
-    loadIRButton.onClick = [this] {
+
+
+    refreshIRs();
+
+    irSelector.onChange = [this] {
+        juce::File irDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Lukas Hansen Audio/LH Thunderforge/IRs");
+        auto irFiles = irDir.findChildFiles(juce::File::findFiles, false, "*.wav");
+        int index = irSelector.getSelectedItemIndex();
+        if (index >= 0 && index < irFiles.size()) {
+            audioProcessor.loadCabinetIR(irFiles[index]);
+        }
+    };
+
+    loadIRButton.onClick = [this, refreshIRs] {
         chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
         auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
+        chooser->launchAsync (flags, [this, refreshIRs] (const juce::FileChooser& fc) {
             auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
+            if (file.existsAsFile()) {
+                juce::File irDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                    .getChildFile("Lukas Hansen Audio/LH Thunderforge/IRs");
+                file.copyFileTo(irDir.getChildFile(file.getFileName()));
+                audioProcessor.loadCabinetIR(irDir.getChildFile(file.getFileName()));
+                refreshIRs();
+            }
         });
     };
+
 
     setSize (1000, 650);
     startTimerHz (60);
@@ -108,6 +182,8 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
     auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    auto flicker = juce::Random::getSystemRandom().nextFloat() * 0.1f * driveVal;
+    glowAlpha += flicker;
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -167,8 +243,10 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namSelector.setBounds (buttonsArea.removeFromLeft (150).reduced (2));
+    loadNAMButton.setBounds (buttonsArea.removeFromLeft (80).reduced (2));
+    irSelector.setBounds (buttonsArea.removeFromLeft (150).reduced (2));
+    loadIRButton.setBounds (buttonsArea.removeFromLeft (80).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
