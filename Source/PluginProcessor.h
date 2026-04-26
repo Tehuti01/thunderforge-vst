@@ -31,6 +31,9 @@ public:
     // ... (standard methods)
     void loadPreset (int index);
     void triggerTestNote (bool play);
+
+    void loadPresetsFromJSON();
+    void savePresetsToJSON();
     
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
@@ -56,7 +59,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -112,12 +115,16 @@ private:
 
     std::mutex fftMutex;
     
+    juce::MidiKeyboardState keyboardState;
+
     // Internal Test Oscillator / DSP Helpers
     juce::dsp::Oscillator<float> testOsc;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+
+    std::vector<thunderforge::Preset> presets;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();

@@ -107,7 +107,10 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    float flicker = juce::Random::getSystemRandom().nextFloat() * 0.2f * driveVal;
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005)) + flicker;
+    glowAlpha = juce::jlimit(0.0, 1.0, glowAlpha);
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -250,4 +253,7 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
 
     // Update Preset Label
     presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
+
+    // Repaint for continuous tube flicker and meter updates
+    repaint();
 }
