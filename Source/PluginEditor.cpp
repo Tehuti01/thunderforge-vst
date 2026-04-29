@@ -67,26 +67,28 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
+    namDirectory = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("Lukas Hansen Audio")
+        .getChildFile ("LH Thunderforge")
+        .getChildFile ("NAM");
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
+    namDirectory.createDirectory();
+
+    addAndMakeVisible (namSelector);
+    scanNAMFiles();
+    namSelector.onChange = [this] {
+        int idx = namSelector.getSelectedItemIndex();
+        if (idx >= 0 && idx < availableNAMFiles.size())
+            audioProcessor.loadNAMModel (availableNAMFiles[idx]);
     };
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
-    };
+    irBrowser = std::make_unique<juce::FileBrowserComponent> (
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        nullptr, nullptr
+    );
+    irBrowser->addListener (this);
+    addAndMakeVisible (irBrowser.get());
 
     setSize (1000, 650);
     startTimerHz (60);
@@ -107,8 +109,12 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
     
+    // Thermal Simulation (Tube Flicker)
+    float flicker = 1.0f + ((juce::Random::getSystemRandom().nextFloat() - 0.5f) * 0.15f * driveVal);
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    glowAlpha *= flicker;
+
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
     
@@ -165,12 +171,17 @@ void ThunderforgeAudioProcessorEditor::resized()
     // 2. Dynamics Section
     auto dynamicsArea = area.removeFromLeft (140);
     
-    // Snapshot Buttons
-    auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    // Snapshot Buttons & IR Browser
+    auto topPanel = area.removeFromTop (220);
+
+    auto leftTop = topPanel.removeFromLeft(200);
+    namSelector.setBounds(leftTop.removeFromTop(30).reduced(2));
 
     // LCD Layout
+    lcd.setBounds (leftTop.reduced (10, 0).toNearestInt());
+
+    irBrowser->setBounds(topPanel.reduced(5));
+
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
     
     area.removeFromTop (24); // Gap
@@ -250,4 +261,25 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
 
     // Update Preset Label
     presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
+}
+
+void ThunderforgeAudioProcessorEditor::scanNAMFiles()
+{
+    availableNAMFiles = namDirectory.findChildFiles (juce::File::findFiles, false, "*.nam");
+    namSelector.clear();
+    for (int i = 0; i < availableNAMFiles.size(); ++i)
+        namSelector.addItem (availableNAMFiles[i].getFileNameWithoutExtension(), i + 1);
+
+    if (namSelector.getNumItems() > 0)
+        namSelector.setSelectedItemIndex (0, juce::dontSendNotification);
+    else
+        namSelector.setText ("No NAM models found...");
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.existsAsFile() && file.hasFileExtension (".wav"))
+    {
+        audioProcessor.loadCabinetIR (file);
+    }
 }
