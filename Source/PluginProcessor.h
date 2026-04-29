@@ -32,11 +32,16 @@ public:
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
+    void loadPresetsFromJson();
+    void savePresetsToJson();
+
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
     float getInputLevel() const noexcept { return inputLevel.load(); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
+
+    juce::MidiKeyboardState& getMidiKeyboardState() { return keyboardState; }
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
 
@@ -56,7 +61,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -73,6 +78,7 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    juce::MidiKeyboardState keyboardState;
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     
     // DSP Modules
@@ -118,6 +124,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    std::vector<thunderforge::Preset> loadedPresets;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
