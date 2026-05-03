@@ -56,7 +56,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -118,6 +118,7 @@ private:
     
     bool isPlayingTestNote = false;
     int currentPresetIndex = 0;
+    juce::MidiKeyboardState keyboardState;
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
