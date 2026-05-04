@@ -29,12 +29,14 @@ public:
     ~ThunderforgeAudioProcessor() override;
 
     // ... (standard methods)
+    void initializePresets();
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
+    std::vector<thunderforge::Preset> presets;
     float getInputLevel() const noexcept { return inputLevel.load(); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
 
@@ -56,7 +58,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -121,6 +123,8 @@ private:
     
     void pushNextSampleIntoFifo (float sample) noexcept;
     void performFFT();
+
+    juce::MidiKeyboardState keyboardState;
 
 public:
     void getNextFFTBlock (std::vector<float>& destData, float& peakHz)

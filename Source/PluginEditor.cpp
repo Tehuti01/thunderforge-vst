@@ -41,10 +41,9 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < std::min(5, (int)audioProcessor.presets.size()); ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        acdcButtons[i].setButtonText (audioProcessor.presets[i].name);
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
@@ -67,26 +66,35 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
+    addAndMakeVisible (namComboBox);
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
+    // Scan for .nam files to populate the combo box
+    juce::File defaultNamDir = juce::File::getSpecialLocation(juce::File::userHomeDirectory);
+    juce::Array<juce::File> namFiles = defaultNamDir.findChildFiles(juce::File::findFiles, false, "*.nam");
+
+    int itemId = 1;
+    namComboBox.addItem ("Select NAM Model...", itemId++);
+    for (const auto& file : namFiles)
+    {
+        namComboBox.addItem (file.getFileNameWithoutExtension(), itemId++);
+    }
+    namComboBox.setSelectedId (1);
+
+    namComboBox.onChange = [this, namFiles] {
+        int selectedId = namComboBox.getSelectedId();
+        if (selectedId > 1 && selectedId - 2 < namFiles.size())
+        {
+            audioProcessor.loadNAMModel(namFiles[selectedId - 2]);
+        }
     };
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
-    };
+    irBrowser = std::make_unique<juce::FileBrowserComponent>(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        nullptr, nullptr);
+
+    irBrowser->addListener(this);
+    addAndMakeVisible(irBrowser.get());
 
     setSize (1000, 650);
     startTimerHz (60);
@@ -107,7 +115,16 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Thermal simulation / Tube flicker based on drive
+    float flicker = 1.0f;
+    if (driveVal > 0.1f) {
+        // Fast, random flicker based on time, scaled by drive amount
+        float timeMs = juce::Time::getMillisecondCounterHiRes();
+        flicker = 1.0f - (driveVal * 0.15f * std::abs(std::sin(timeMs * 0.05f) * std::cos(timeMs * 0.03f)));
+    }
+
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005)) * flicker;
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -165,13 +182,16 @@ void ThunderforgeAudioProcessorEditor::resized()
     // 2. Dynamics Section
     auto dynamicsArea = area.removeFromLeft (140);
     
-    // Snapshot Buttons
-    auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    // Snapshot Buttons & Browsers
+    auto browsersArea = area.removeFromTop (220);
+    auto leftBrowsers = browsersArea.removeFromLeft(browsersArea.getWidth() / 2).reduced(5);
+
+    namComboBox.setBounds(leftBrowsers.removeFromTop(30).reduced(2));
+    if (irBrowser != nullptr)
+        irBrowser->setBounds(leftBrowsers);
 
     // LCD Layout
-    lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
+    lcd.setBounds (browsersArea.reduced (10, 0).toNearestInt());
     
     area.removeFromTop (24); // Gap
     
@@ -219,6 +239,13 @@ void ThunderforgeAudioProcessorEditor::resized()
     auto presetW = bottomArea.getWidth() / 5;
     for (int i = 0; i < 5; ++i)
         acdcButtons[i].setBounds (bottomArea.removeFromLeft (presetW).reduced (2).toNearestInt());
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.existsAsFile() && file.hasFileExtension(".wav")) {
+        audioProcessor.loadCabinetIR(file);
+    }
 }
 
 void ThunderforgeAudioProcessorEditor::timerCallback()
