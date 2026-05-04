@@ -14,7 +14,7 @@ add_subdirectory(modules/NeuralAmpModelerCore)
 juce_add_plugin(Thunderforge
     COMPANY_NAME "Lukas Hansen Audio"
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
@@ -66,6 +66,8 @@ target_link_libraries(Thunderforge PRIVATE
 target_compile_definitions(Thunderforge PRIVATE
     JUCE_VST2_CAN_REPLACE_VST3=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_CURL=0
+    JUCE_WEB_BROWSER=0
 )
 
 juce_generate_juce_header(Thunderforge)
