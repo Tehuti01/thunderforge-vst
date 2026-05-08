@@ -4,7 +4,7 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileBrowserListener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
@@ -13,6 +13,11 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
+    void selectionChanged() override {}
+    void fileClicked (const juce::File& file, const juce::MouseEvent& e) override {}
+    void fileDoubleClicked (const juce::File& file) override;
+    void browserRootChanged (const juce::File&) override {}
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -37,8 +42,11 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+
+    juce::ComboBox namSelector;
+    juce::Array<juce::File> namFiles;
+
+    std::unique_ptr<juce::FileBrowserComponent> irBrowser;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
