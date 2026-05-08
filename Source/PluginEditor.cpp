@@ -32,19 +32,26 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     presetLabel.setColour (juce::Label::textColourId, thunderforge::ThunderforgeLookAndFeel::aeroCyan);
 
     prevButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 4) % 5;
+        int total = audioProcessor.presets.size();
+        if (total == 0) return;
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + total - 1) % total;
         audioProcessor.loadPreset (nextIdx);
     };
 
     nextButton.onClick = [this] {
-        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % 5;
+        int total = audioProcessor.presets.size();
+        if (total == 0) return;
+        int nextIdx = (audioProcessor.getCurrentPresetIndex() + 1) % total;
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
     for (int i = 0; i < 5; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        if (i < audioProcessor.presets.size()) {
+            acdcButtons[i].setButtonText (audioProcessor.presets[i].name);
+        } else {
+            acdcButtons[i].setButtonText (juce::String(i+1));
+        }
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
@@ -67,25 +74,26 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
+    addAndMakeVisible (namSelector);
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
-    };
+    irBrowser = std::make_unique<juce::FileBrowserComponent>(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        nullptr, nullptr);
+    irBrowser->addListener(this);
+    addAndMakeVisible (irBrowser.get());
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
+    namSelector.setTextWhenNothingSelected ("Select AMP...");
+    namFiles = juce::File::getSpecialLocation (juce::File::userHomeDirectory).findChildFiles (juce::File::findFiles, false, "*.nam");
+    for (int i = 0; i < namFiles.size(); ++i) {
+        namSelector.addItem (namFiles[i].getFileNameWithoutExtension(), i + 1);
+    }
+
+    namSelector.onChange = [this] {
+        int id = namSelector.getSelectedId();
+        if (id > 0 && id <= namFiles.size()) {
+            audioProcessor.loadNAMModel (namFiles[id - 1]);
+        }
     };
 
     setSize (1000, 650);
@@ -95,6 +103,13 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
 {
     setLookAndFeel (nullptr);
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.existsAsFile() && file.hasFileExtension("wav")) {
+        audioProcessor.loadCabinetIR (file);
+    }
 }
 
 void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
@@ -167,11 +182,13 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namSelector.setBounds (buttonsArea.removeFromLeft (150).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
+
+    // irBrowser layout
+    irBrowser->setBounds (area.removeFromRight (250).reduced(5));
     
     area.removeFromTop (24); // Gap
     
