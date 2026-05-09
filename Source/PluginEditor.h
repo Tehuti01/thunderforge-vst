@@ -4,7 +4,7 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileBrowserListener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
@@ -13,6 +13,12 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
+    // FileBrowserListener overrides
+    void selectionChanged() override {}
+    void fileClicked (const juce::File& file, const juce::MouseEvent& e) override {}
+    void fileDoubleClicked (const juce::File& file) override;
+    void browserRootChanged (const juce::File& newRoot) override {}
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -37,8 +43,12 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+
+    juce::ComboBox namComboBox;
+    juce::Array<juce::File> namFiles;
+
+    std::unique_ptr<juce::WildcardFileFilter> irFilter;
+    std::unique_ptr<juce::FileBrowserComponent> irBrowser;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
@@ -55,8 +65,6 @@ private:
     std::unique_ptr<Attachment> reverbAttachment;
     std::unique_ptr<Attachment> masterAttachment;
     std::unique_ptr<Attachment> widthAttachment;
-    
-    std::unique_ptr<juce::FileChooser> chooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThunderforgeAudioProcessorEditor)
 };
