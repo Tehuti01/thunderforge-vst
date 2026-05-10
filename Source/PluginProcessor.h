@@ -56,7 +56,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -112,6 +112,11 @@ private:
 
     std::mutex fftMutex;
     
+    juce::MidiKeyboardState keyboardState;
+
+    std::vector<thunderforge::Preset> presets;
+    void loadPresets();
+
     // Internal Test Oscillator / DSP Helpers
     juce::dsp::Oscillator<float> testOsc;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
