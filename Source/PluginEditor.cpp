@@ -41,10 +41,9 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
         audioProcessor.loadPreset (nextIdx);
     };
 
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY", "THUNDER", "HELLS BELLS", "SHOOK ME" };
     for (int i = 0; i < 5; ++i)
     {
-        acdcButtons[i].setButtonText (acdcNames[i]);
+        acdcButtons[i].setButtonText (audioProcessor.getPresetName(i));
         addAndMakeVisible (acdcButtons[i]);
         acdcButtons[i].onClick = [this, i] { audioProcessor.loadPreset (i); };
     }
@@ -67,29 +66,39 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
+    irFilter = std::make_unique<juce::WildcardFileFilter>("*.wav", "*", "WAV Files");
+    irBrowser = std::make_unique<juce::FileBrowserComponent>(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+        irFilter.get(),
+        nullptr
+    );
+    irBrowser->addListener(this);
+    addAndMakeVisible(*irBrowser);
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
-    };
+    addAndMakeVisible(namComboBox);
+    namFilesList = juce::File::getSpecialLocation(juce::File::userHomeDirectory).findChildFiles(juce::File::findFiles, false, "*.nam");
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
+    for (int i = 0; i < namFilesList.size(); ++i)
+    {
+        namComboBox.addItem(namFilesList[i].getFileNameWithoutExtension(), i + 1);
+    }
+
+    namComboBox.onChange = [this] {
+        int index = namComboBox.getSelectedId() - 1;
+        if (index >= 0 && index < namFilesList.size())
+        {
+            audioProcessor.loadNAMModel(namFilesList[index]);
+        }
     };
 
     setSize (1000, 650);
     startTimerHz (60);
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
 }
 
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
@@ -104,8 +113,8 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillAll (thunderforge::ThunderforgeLookAndFeel::aeroDark);
     
     // --- 300x TUBE GLOW ---
-    auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
-    auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
+    auto driveVal = audioProcessor.getAPVTS().getRawParameterValue ("ts_drive")->load() / 100.0f;
+    auto widthVal = audioProcessor.getAPVTS().getRawParameterValue ("stereo_width")->load() / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
     auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
     
@@ -167,11 +176,13 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namComboBox.setBounds (buttonsArea.removeFromLeft (200).reduced (2));
+
+    // IR Browser Layout
+    irBrowser->setBounds (area.removeFromTop (150).reduced(10, 0).toNearestInt());
 
     // LCD Layout
-    lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
+    lcd.setBounds (area.removeFromTop (70).reduced (10, 0).toNearestInt());
     
     area.removeFromTop (24); // Gap
     
