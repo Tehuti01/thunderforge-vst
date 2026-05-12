@@ -67,6 +67,39 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
+
+    for (const auto meta : midiMessages)
+    {
+        auto msg = meta.getMessage();
+        if (msg.isController())
+        {
+            auto cc = msg.getControllerNumber();
+            auto val = msg.getControllerValue() / 127.0f; // 0 to 1
+
+            juce::String paramId = "";
+            switch (cc) {
+                case 1: paramId = "gate_threshold"; break;
+                case 2: paramId = "comp_threshold"; break;
+                case 3: paramId = "ts_drive"; break;
+                case 4: paramId = "eq_bass"; break;
+                case 5: paramId = "eq_mid"; break;
+                case 6: paramId = "eq_treble"; break;
+                case 7: paramId = "delay_mix"; break;
+                case 8: paramId = "reverb_mix"; break;
+                case 9: paramId = "output_gain"; break;
+                case 10: paramId = "stereo_width"; break;
+            }
+            if (paramId.isNotEmpty())
+            {
+                if (auto* param = apvts.getParameter (paramId))
+                {
+                    param->setValue (param->convertTo0to1 (param->getNormalisableRange().convertFrom0to1 (val)));
+                }
+            }
+        }
+    }
+
     // Update Parameters
     noiseGate.setParameters (*apvts.getRawParameterValue ("gate_threshold"),
                              *apvts.getRawParameterValue ("gate_attack"),
@@ -353,31 +386,77 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
 
 void ThunderforgeAudioProcessor::loadPreset (int index)
 {
-    struct P { float d, b, m, t, p, v; };
-    static const P acdc[] = {
-        { 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f }, // Back in Black
-        { 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f }, // Highway to Hell
-        { 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f }, // Thunderstruck
-        { 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f }, // Hells Bells
-        { 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f }  // Shook Me
-    };
+    juce::File presetFile = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                                .getChildFile("Lukas Hansen Audio")
+                                .getChildFile("LH Thunderforge")
+                                .getChildFile("presets.json");
 
-    if (index >= 0 && index < 5)
+    if (!presetFile.existsAsFile())
     {
-        auto setParam = [this] (auto id, float val, float min, float max) {
-            auto range = apvts.getParameterRange (id);
-            float norm = (val - range.start) / (range.end - range.start);
-            apvts.getParameter (id)->setValueNotifyingHost (norm);
+        presetFile.getParentDirectory().createDirectory();
+
+        // Generate default AC/DC presets
+        juce::var acdc[] = {
+            new juce::DynamicObject(), new juce::DynamicObject(), new juce::DynamicObject(), new juce::DynamicObject(), new juce::DynamicObject()
         };
 
-        setParam ("ts_drive", acdc[index].d * 10.0f, 0.0f, 100.0f);
-        setParam ("eq_bass", acdc[index].b, 0.0f, 10.0f);
-        setParam ("eq_mid", acdc[index].m, 0.0f, 10.0f);
-        setParam ("eq_treble", acdc[index].t, 0.0f, 10.0f);
-        setParam ("eq_presence", acdc[index].p, 0.0f, 10.0f);
-        setParam ("master_volume", acdc[index].v, -60.0f, 12.0f);
+        auto setup = [](juce::var& v, float d, float b, float m, float t, float p, float vol) {
+            v.getDynamicObject()->setProperty("d", d);
+            v.getDynamicObject()->setProperty("b", b);
+            v.getDynamicObject()->setProperty("m", m);
+            v.getDynamicObject()->setProperty("t", t);
+            v.getDynamicObject()->setProperty("p", p);
+            v.getDynamicObject()->setProperty("v", vol);
+        };
+
+        setup(acdc[0], 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f);
+        setup(acdc[1], 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f);
+        setup(acdc[2], 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f);
+        setup(acdc[3], 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f);
+        setup(acdc[4], 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f);
+
+        juce::Array<juce::var> presetArray;
+        for (int i = 0; i < 5; ++i) presetArray.add(acdc[i]);
         
-        currentPresetIndex = index;
+        juce::var presetsVar(presetArray);
+        presetFile.replaceWithText(juce::JSON::toString(presetsVar));
+    }
+
+    auto parsedJson = juce::JSON::parse(presetFile);
+    if (parsedJson.isArray())
+    {
+        auto* array = parsedJson.getArray();
+        if (index >= 0 && index < array->size())
+        {
+            auto preset = array->getReference(index);
+            if (preset.isObject())
+            {
+                auto setParam = [this] (auto id, float val) {
+                    if (auto* param = apvts.getParameter(id))
+                    {
+                        auto range = param->getNormalisableRange();
+                        float norm = range.convertTo0to1(val);
+                        param->setValueNotifyingHost(norm);
+                    }
+                };
+
+                auto d = static_cast<float>(static_cast<double>(preset["d"]));
+                auto b = static_cast<float>(static_cast<double>(preset["b"]));
+                auto m = static_cast<float>(static_cast<double>(preset["m"]));
+                auto t = static_cast<float>(static_cast<double>(preset["t"]));
+                auto p = static_cast<float>(static_cast<double>(preset["p"]));
+                auto v = static_cast<float>(static_cast<double>(preset["v"]));
+
+                setParam("ts_drive", d * 10.0f);
+                setParam("eq_bass", b);
+                setParam("eq_mid", m);
+                setParam("eq_treble", t);
+                setParam("eq_presence", p);
+                setParam("output_gain", v); // memory says master_volume is output_gain
+
+                currentPresetIndex = index;
+            }
+        }
     }
 }
 
