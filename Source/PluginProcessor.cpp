@@ -67,6 +67,41 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
+
+    // MIDI CC Mapping
+    for (const auto metadata : midiMessages)
+    {
+        auto message = metadata.getMessage();
+        if (message.isController())
+        {
+            int ccNumber = message.getControllerNumber();
+            float value = message.getControllerValue() / 127.0f; // 0.0 to 1.0
+
+            juce::String paramID;
+            switch (ccNumber) {
+                case 1: paramID = "gate_threshold"; break;
+                case 2: paramID = "comp_threshold"; break;
+                case 3: paramID = "ts_drive"; break;
+                case 4: paramID = "eq_bass"; break;
+                case 5: paramID = "eq_mid"; break;
+                case 6: paramID = "eq_treble"; break;
+                case 7: paramID = "delay_mix"; break;
+                case 8: paramID = "reverb_mix"; break;
+                case 9: paramID = "output_gain"; break;
+                case 10: paramID = "stereo_width"; break;
+                default: break;
+            }
+
+            if (paramID.isNotEmpty()) {
+                auto* param = apvts.getParameter(paramID);
+                if (param != nullptr) {
+                    param->setValue(value);
+                }
+            }
+        }
+    }
+
     // Update Parameters
     noiseGate.setParameters (*apvts.getRawParameterValue ("gate_threshold"),
                              *apvts.getRawParameterValue ("gate_attack"),

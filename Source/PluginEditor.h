@@ -4,11 +4,20 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileBrowserListener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
     ~ThunderforgeAudioProcessorEditor() override;
+
+    void selectionChanged() override {}
+    void fileClicked (const juce::File& file, const juce::MouseEvent& e) override {}
+    void fileDoubleClicked (const juce::File& file) override {
+        if (file.existsAsFile() && file.hasFileExtension(".wav")) {
+            audioProcessor.loadCabinetIR (file);
+        }
+    }
+    void browserRootChanged (const juce::File&) override {}
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -37,8 +46,10 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+    juce::ComboBox namSelector { "NAM Model" };
+    juce::Array<juce::File> namFiles;
+
+    std::unique_ptr<juce::FileBrowserComponent> fileBrowser;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
