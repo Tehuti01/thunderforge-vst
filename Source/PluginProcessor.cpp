@@ -67,6 +67,41 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
+
+    for (const auto meta : midiMessages)
+    {
+        auto msg = meta.getMessage();
+        if (msg.isController())
+        {
+            int cc = msg.getControllerNumber();
+            float val = msg.getControllerValue() / 127.0f; // normalize 0 to 1
+
+            auto setParamFromNorm = [this] (const juce::String& id, float norm) {
+                auto* param = apvts.getParameter (id);
+                if (param != nullptr)
+                {
+                    auto range = param->getNormalisableRange();
+                    param->setValue (norm);
+                }
+            };
+
+            switch (cc)
+            {
+                case 1:  setParamFromNorm ("gate_threshold", val); break;
+                case 2:  setParamFromNorm ("comp_threshold", val); break;
+                case 3:  setParamFromNorm ("ts_drive", val); break;
+                case 4:  setParamFromNorm ("eq_bass", val); break;
+                case 5:  setParamFromNorm ("eq_mid", val); break;
+                case 6:  setParamFromNorm ("eq_treble", val); break;
+                case 7:  setParamFromNorm ("delay_mix", val); break;
+                case 8:  setParamFromNorm ("reverb_mix", val); break;
+                case 9:  setParamFromNorm ("output_gain", val); break;
+                case 10: setParamFromNorm ("stereo_width", val); break;
+            }
+        }
+    }
+
     // Update Parameters
     noiseGate.setParameters (*apvts.getRawParameterValue ("gate_threshold"),
                              *apvts.getRawParameterValue ("gate_attack"),
@@ -142,7 +177,7 @@ void ThunderforgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     chorus.process (buffer);
 
     // Master Volume
-    float masterVolDb = *apvts.getRawParameterValue ("master_volume");
+    float masterVolDb = *apvts.getRawParameterValue ("output_gain");
     // --- CABINET IR ---
     bool cabinetBypass = *apvts.getRawParameterValue ("bypass_cabinet");
     if (!cabinetBypass)
@@ -351,40 +386,116 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThunderforgeAudioProcessor::
     return { params.begin(), params.end() };
 }
 
+void ThunderforgeAudioProcessor::loadPresetsCache()
+{
+    juce::File appDataDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+        .getChildFile("Lukas Hansen Audio")
+        .getChildFile("LH Thunderforge");
+
+    juce::File presetFile = appDataDir.getChildFile("presets.json");
+
+    if (!presetFile.existsAsFile())
+    {
+        // Create default ACDC presets if file doesn't exist
+        appDataDir.createDirectory();
+
+        juce::DynamicObject::Ptr rootObj = new juce::DynamicObject();
+        juce::Array<juce::var> presetsArray;
+
+        auto createPreset = [](const juce::String& name, float d, float b, float m, float t, float p, float v) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            obj->setProperty("name", name);
+            obj->setProperty("drive", d);
+            obj->setProperty("bass", b);
+            obj->setProperty("mid", m);
+            obj->setProperty("treble", t);
+            obj->setProperty("presence", p);
+            obj->setProperty("volume", v);
+            return juce::var(obj.get());
+        };
+        
+        presetsArray.add(createPreset("BACK IN BLACK", 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f));
+        presetsArray.add(createPreset("HIGHWAY TO HELL", 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f));
+        presetsArray.add(createPreset("THUNDERSTRUCK", 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f));
+        presetsArray.add(createPreset("HELLS BELLS", 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f));
+        presetsArray.add(createPreset("YOU SHOOK ME", 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f));
+
+        rootObj->setProperty("presets", presetsArray);
+
+        cachedPresetsJson = juce::var(rootObj.get());
+        juce::String jsonString = juce::JSON::toString(cachedPresetsJson);
+        presetFile.replaceWithText(jsonString);
+    }
+    else
+    {
+        cachedPresetsJson = juce::JSON::parse(presetFile);
+    }
+    presetsCached = true;
+}
+
 void ThunderforgeAudioProcessor::loadPreset (int index)
 {
-    struct P { float d, b, m, t, p, v; };
-    static const P acdc[] = {
-        { 7.5f, 5.0f, 8.5f, 5.0f, 6.0f, -4.0f }, // Back in Black
-        { 6.5f, 6.0f, 7.0f, 6.0f, 5.0f, -4.0f }, // Highway to Hell
-        { 8.5f, 8.0f, 6.0f, 8.0f, 7.0f, -2.0f }, // Thunderstruck
-        { 4.5f, 5.0f, 8.0f, 3.0f, 2.0f, -1.0f }, // Hells Bells
-        { 6.0f, 4.0f, 7.5f, 7.0f, 6.0f, -3.0f }  // Shook Me
-    };
+    if (index < 0) return;
 
-    if (index >= 0 && index < 5)
+    if (!presetsCached)
+        loadPresetsCache();
+
+    if (cachedPresetsJson.isObject() && cachedPresetsJson.hasProperty("presets"))
     {
-        auto setParam = [this] (auto id, float val, float min, float max) {
-            auto range = apvts.getParameterRange (id);
-            float norm = (val - range.start) / (range.end - range.start);
-            apvts.getParameter (id)->setValueNotifyingHost (norm);
-        };
+        auto presetsArray = cachedPresetsJson["presets"].getArray();
+        if (presetsArray != nullptr && index < presetsArray->size())
+        {
+            auto presetVar = presetsArray->getReference(index);
+            if (presetVar.isObject())
+            {
+                auto setParam = [this] (const juce::String& id, float val) {
+                    auto* param = apvts.getParameter(id);
+                    if (param != nullptr)
+                    {
+                        auto range = param->getNormalisableRange();
+                        float norm = (val - range.start) / (range.end - range.start);
+                        param->setValueNotifyingHost(norm);
+                    }
+                };
 
-        setParam ("ts_drive", acdc[index].d * 10.0f, 0.0f, 100.0f);
-        setParam ("eq_bass", acdc[index].b, 0.0f, 10.0f);
-        setParam ("eq_mid", acdc[index].m, 0.0f, 10.0f);
-        setParam ("eq_treble", acdc[index].t, 0.0f, 10.0f);
-        setParam ("eq_presence", acdc[index].p, 0.0f, 10.0f);
-        setParam ("master_volume", acdc[index].v, -60.0f, 12.0f);
-        
-        currentPresetIndex = index;
+                float drive = static_cast<float>(static_cast<double>(presetVar["drive"]));
+                float bass = static_cast<float>(static_cast<double>(presetVar["bass"]));
+                float mid = static_cast<float>(static_cast<double>(presetVar["mid"]));
+                float treble = static_cast<float>(static_cast<double>(presetVar["treble"]));
+                float presence = static_cast<float>(static_cast<double>(presetVar["presence"]));
+                float volume = static_cast<float>(static_cast<double>(presetVar["volume"]));
+
+                setParam("ts_drive", drive * 10.0f);
+                setParam("eq_bass", bass);
+                setParam("eq_mid", mid);
+                setParam("eq_treble", treble);
+                setParam("eq_presence", presence);
+                setParam("output_gain", volume);
+
+                currentPresetIndex = index;
+            }
+        }
     }
 }
 
 juce::String ThunderforgeAudioProcessor::getPresetName (int index) const
 {
-    static const juce::String acdcNames[] = { "BACK IN BLACK", "HIGHWAY TO HELL", "THUNDERSTRUCK", "HELLS BELLS", "YOU SHOOK ME" };
-    if (index >= 0 && index < 5) return acdcNames[index];
+    if (!presetsCached)
+        const_cast<ThunderforgeAudioProcessor*>(this)->loadPresetsCache();
+
+    if (cachedPresetsJson.isObject() && cachedPresetsJson.hasProperty("presets"))
+    {
+        auto presetsArray = cachedPresetsJson["presets"].getArray();
+        if (presetsArray != nullptr && index >= 0 && index < presetsArray->size())
+        {
+            auto presetVar = presetsArray->getReference(index);
+            if (presetVar.isObject() && presetVar.hasProperty("name"))
+            {
+                return presetVar["name"].toString();
+            }
+        }
+    }
+
     return "USER PRESET";
 }
 

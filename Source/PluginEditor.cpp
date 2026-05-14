@@ -70,23 +70,38 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     addAndMakeVisible (loadNAMButton);
     addAndMakeVisible (loadIRButton);
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
+    loadNAMButton.setVisible (false); // Removed functionality for NAM selector replacement
+
+    addAndMakeVisible (namSelector);
+    namSelector.setTextWhenNothingSelected ("Select NAM Model...");
+
+    auto namFiles = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+        .findChildFiles (juce::File::TypesOfFileToFind::findFiles, true, "*.nam");
+
+    int itemId = 1;
+    for (const auto& file : namFiles)
+    {
+        namSelector.addItem (file.getFileName(), itemId++);
+    }
+
+    namSelector.onChange = [this, namFiles] {
+        int index = namSelector.getSelectedItemIndex();
+        if (index >= 0 && index < namFiles.size())
+        {
+            audioProcessor.loadNAMModel (namFiles[index]);
+        }
     };
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
-    };
+    loadIRButton.setVisible (false); // Removed functionality for IR Browser replacement
+
+    irBrowser = std::make_unique<juce::FileBrowserComponent> (
+        juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::openMode,
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        nullptr,
+        nullptr
+    );
+    irBrowser->addListener (this);
+    addAndMakeVisible (irBrowser.get());
 
     setSize (1000, 650);
     startTimerHz (60);
@@ -107,7 +122,10 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Make flicker directly proportional to drive value as per thermal simulation requirement
+    auto flicker = (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005)) * driveVal;
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * flicker;
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -170,6 +188,8 @@ void ThunderforgeAudioProcessorEditor::resized()
     loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
     loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
 
+    namSelector.setBounds (buttonsArea.removeFromLeft (200).reduced (2));
+
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
     
@@ -181,8 +201,11 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // 1. DYNAMICS Module (2 cols)
     auto dynArea = moduleArea.removeFromLeft (colW * 2).reduced (4);
-    gateKnob.setBounds (dynArea.removeFromTop (dynArea.getHeight() / 2).withSizeKeepingCentre (75, 90).toNearestInt());
-    compKnob.setBounds (dynArea.withSizeKeepingCentre (75, 90).toNearestInt());
+    gateKnob.setBounds (dynArea.removeFromTop (dynArea.getHeight() / 3).withSizeKeepingCentre (75, 90).toNearestInt());
+    compKnob.setBounds (dynArea.removeFromTop (dynArea.getHeight() / 2).withSizeKeepingCentre (75, 90).toNearestInt());
+
+    if (irBrowser != nullptr)
+        irBrowser->setBounds (dynArea.reduced (2));
     
     // 2. PREAMP Module (2 cols)
     auto preampArea = moduleArea.removeFromLeft (colW * 2).reduced (4);
@@ -250,4 +273,10 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
 
     // Update Preset Label
     presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.hasFileExtension (".wav"))
+        audioProcessor.loadCabinetIR (file);
 }
