@@ -67,6 +67,32 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
+    addAndMakeVisible (namComboBox);
+
+    // Scan for NAM models
+    auto docsDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+    scanner = std::make_unique<ScannerThread>(docsDir, [this](const juce::Array<juce::File>& files) {
+        onScanComplete(files);
+    });
+    scanner->startThread();
+
+    namComboBox.onChange = [this] {
+        int selectedId = namComboBox.getSelectedId();
+        if (selectedId > 0 && selectedId <= namFiles.size()) {
+            audioProcessor.loadNAMModel(namFiles[selectedId - 1]);
+        }
+    };
+
+    irFilter = std::make_unique<juce::WildcardFileFilter>("*.wav", "*", "WAV Audio files");
+    irBrowser = std::make_unique<juce::FileBrowserComponent>(
+        juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::openMode,
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+        irFilter.get(),
+        nullptr
+    );
+    irBrowser->addListener(this);
+    addAndMakeVisible(*irBrowser);
+
     addAndMakeVisible (loadNAMButton);
     addAndMakeVisible (loadIRButton);
 
@@ -94,7 +120,19 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
 
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
 {
+    if (scanner != nullptr) {
+        scanner->stopThread(1000);
+    }
     setLookAndFeel (nullptr);
+}
+
+void ThunderforgeAudioProcessorEditor::onScanComplete(const juce::Array<juce::File>& files) {
+    namFiles = files;
+    namComboBox.clear();
+    int id = 1;
+    for (const auto& file : namFiles) {
+        namComboBox.addItem(file.getFileName(), id++);
+    }
 }
 
 void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
@@ -107,7 +145,19 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Thermal Simulation (Tube Flicker)
+    // Flicker intensity scales directly proportional to the drive value.
+    float flicker = 1.0f;
+    if (driveVal > 0.0f) {
+        float randomNoise = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f); // -1.0 to 1.0
+        // Use a base sine wave mixed with some noise, scaled by drive.
+        flicker = 1.0f + (0.15f * driveVal * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.05)) + (0.05f * driveVal * randomNoise);
+    }
+
+    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * flicker * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    // clamp alpha to 0.0-1.0
+    glowAlpha = std::clamp(glowAlpha, 0.0, 1.0);
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -167,8 +217,12 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
+    namComboBox.setBounds (buttonsArea.removeFromLeft (150).reduced (2));
     loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
     loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+
+    // IR Browser
+    irBrowser->setBounds (area.removeFromRight (150).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
@@ -250,4 +304,12 @@ void ThunderforgeAudioProcessorEditor::timerCallback()
 
     // Update Preset Label
     presetLabel.setText (audioProcessor.getPresetName (audioProcessor.getCurrentPresetIndex()), juce::dontSendNotification);
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.hasFileExtension("wav") || file.hasFileExtension("WAV"))
+    {
+        audioProcessor.loadCabinetIR(file);
+    }
 }
