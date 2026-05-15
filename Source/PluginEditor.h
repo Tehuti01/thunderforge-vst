@@ -4,7 +4,7 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileBrowserListener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
@@ -13,6 +13,12 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
+    // FileBrowserListener
+    void selectionChanged() override {}
+    void fileClicked (const juce::File&, const juce::MouseEvent&) override {}
+    void fileDoubleClicked (const juce::File& file) override;
+    void browserRootChanged (const juce::File&) override {}
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -37,8 +43,34 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
+    juce::ComboBox namComboBox { "NAM MODEL" };
+    juce::Array<juce::File> namFiles;
     juce::TextButton loadNAMButton { "LOAD AMP" };
     juce::TextButton loadIRButton { "LOAD CAB" };
+
+    std::unique_ptr<juce::WildcardFileFilter> irFilter;
+    std::unique_ptr<juce::FileBrowserComponent> irBrowser;
+
+    class ScannerThread : public juce::Thread {
+    public:
+        ScannerThread(juce::File dir, std::function<void(juce::Array<juce::File>)> cb)
+            : juce::Thread("Scanner"), directory(dir), callback(cb) {}
+
+        void run() override {
+            auto files = directory.findChildFiles(juce::File::findFiles, true, "*.nam");
+            if (threadShouldExit()) return;
+
+            juce::MessageManager::callAsync([cb = callback, files] {
+                cb(files);
+            });
+        }
+    private:
+        juce::File directory;
+        std::function<void(juce::Array<juce::File>)> callback;
+    };
+
+    std::unique_ptr<ScannerThread> scanner;
+    void onScanComplete(const juce::Array<juce::File>& files);
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
