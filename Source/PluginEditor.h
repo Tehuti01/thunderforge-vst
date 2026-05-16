@@ -4,7 +4,7 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileBrowserListener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
@@ -13,6 +13,61 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
+    // FileBrowserListener methods
+    void selectionChanged() override {}
+    void fileClicked (const juce::File& file, const juce::MouseEvent& e) override {}
+    void fileDoubleClicked (const juce::File& file) override;
+    void browserRootChanged (const juce::File& newRoot) override {}
+
+class NamScannerThread : public juce::Thread
+{
+public:
+    NamScannerThread(juce::ComboBox& comboBoxToUpdate)
+        : juce::Thread("NAM Scanner"), comboBox(comboBoxToUpdate)
+    {
+    }
+
+    void run() override
+    {
+        juce::File docsDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+        juce::Array<juce::File> namFiles = docsDir.findChildFiles(juce::File::findFiles, true, "*.nam");
+
+        juce::StringArray fileNames;
+        for (const auto& file : namFiles)
+        {
+            if (threadShouldExit())
+                return;
+
+            fileNames.add(file.getFullPathName());
+        }
+
+        if (threadShouldExit())
+            return;
+
+        juce::Component::SafePointer<juce::ComboBox> safeComboBox(&comboBox);
+
+        juce::MessageManager::callAsync([safeComboBox, fileNames]() {
+            if (safeComboBox != nullptr)
+            {
+                safeComboBox->clear();
+                for (int i = 0; i < fileNames.size(); ++i)
+                {
+                    safeComboBox->addItem(juce::File(fileNames[i]).getFileNameWithoutExtension(), i + 1);
+                }
+
+                // Store the full paths to access later when an item is selected
+                for (int i = 0; i < fileNames.size(); ++i)
+                {
+                    safeComboBox->getProperties().set(juce::String(i + 1), fileNames[i]);
+                }
+            }
+        });
+    }
+
+private:
+    juce::ComboBox& comboBox;
+};
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -37,8 +92,8 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+    juce::ComboBox namComboBox;
+    std::unique_ptr<NamScannerThread> namScanner;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
@@ -57,6 +112,9 @@ private:
     std::unique_ptr<Attachment> widthAttachment;
     
     std::unique_ptr<juce::FileChooser> chooser;
+
+    std::unique_ptr<juce::WildcardFileFilter> irFilter;
+    std::unique_ptr<juce::FileBrowserComponent> fileBrowser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThunderforgeAudioProcessorEditor)
 };
