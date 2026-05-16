@@ -67,33 +67,53 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
+    addAndMakeVisible (namComboBox);
+    namComboBox.setTextWhenNothingSelected ("Select NAM Model...");
 
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
+    namComboBox.onChange = [this] {
+        auto itemId = namComboBox.getSelectedId();
+        if (itemId > 0)
+        {
+            juce::String fullPath = namComboBox.getProperties().getWithDefault (juce::String (itemId), juce::String());
+            if (fullPath.isNotEmpty())
+            {
+                juce::File file (fullPath);
+                if (file.existsAsFile())
+                    audioProcessor.loadNAMModel (file);
+            }
+        }
     };
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
-    };
+    namScanner = std::make_unique<NamScannerThread>(namComboBox);
+    namScanner->startThread();
 
-    setSize (1000, 650);
+    irFilter = std::make_unique<juce::WildcardFileFilter> ("*.wav", "*", "WAV files");
+    fileBrowser = std::make_unique<juce::FileBrowserComponent> (
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        irFilter.get(),
+        nullptr
+    );
+    fileBrowser->addListener (this);
+    addAndMakeVisible (fileBrowser.get());
+
+    setSize (1250, 650);
     startTimerHz (60);
+}
+
+void ThunderforgeAudioProcessorEditor::fileDoubleClicked (const juce::File& file)
+{
+    if (file.existsAsFile())
+        audioProcessor.loadCabinetIR (file);
 }
 
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
 {
+    if (namScanner != nullptr)
+    {
+        namScanner->stopThread(2000);
+    }
+    fileBrowser->removeListener(this);
     setLookAndFeel (nullptr);
 }
 
@@ -107,7 +127,13 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Create flicker proportional to drive
+    auto flickerSpeed = 0.005f + (driveVal * 0.05f);
+    auto flickerDepth = 0.1f + (driveVal * 0.4f);
+    auto flicker = (1.0f - flickerDepth) + flickerDepth * std::sin (juce::Time::getMillisecondCounterHiRes() * flickerSpeed);
+
+    auto glowAlpha = (driveVal * 0.4f + peak * 0.2f + widthVal * 0.1f) * flicker;
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -162,13 +188,16 @@ void ThunderforgeAudioProcessorEditor::resized()
     auto outputAreaR = area.removeFromRight (30).reduced (5);
     outputMeter.setBounds (outputAreaR.toNearestInt());
 
+    // File Browser
+    auto browserArea = area.removeFromRight (250);
+    fileBrowser->setBounds (browserArea.toNearestInt());
+
     // 2. Dynamics Section
     auto dynamicsArea = area.removeFromLeft (140);
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namComboBox.setBounds (buttonsArea.removeFromLeft (200).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
