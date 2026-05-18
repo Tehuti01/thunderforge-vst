@@ -4,7 +4,45 @@
 #include <lh_thunderforge/lh_thunderforge.h>
 #include "PluginProcessor.h"
 
-class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
+class NAMScannerThread : public juce::Thread
+{
+public:
+    NAMScannerThread (juce::ComboBox& cb) : juce::Thread ("NAM Scanner Thread"), comboBox (cb) {}
+
+    void run() override
+    {
+        auto dir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
+        juce::DirectoryIterator iter (dir, true, "*.nam");
+
+        juce::StringArray names;
+
+        while (iter.next())
+        {
+            if (threadShouldExit())
+                return;
+
+            auto f = iter.getFile();
+            names.add (f.getFileName());
+            scannedFiles.add (f);
+        }
+
+        juce::Component::SafePointer<juce::ComboBox> safeBox (&comboBox);
+        juce::MessageManager::callAsync ([safeBox, names] {
+            if (safeBox != nullptr)
+            {
+                safeBox->clear();
+                safeBox->addItemList (names, 1);
+            }
+        });
+    }
+
+    juce::Array<juce::File> scannedFiles;
+
+private:
+    juce::ComboBox& comboBox;
+};
+
+class ThunderforgeAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::ComboBox::Listener
 {
 public:
     ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor&);
@@ -13,6 +51,8 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
+    void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -39,6 +79,9 @@ private:
     juce::TextButton testNoteButton { "TEST NOTE" };
     juce::TextButton loadNAMButton { "LOAD AMP" };
     juce::TextButton loadIRButton { "LOAD CAB" };
+
+    juce::ComboBox namSelector;
+    std::unique_ptr<NAMScannerThread> namScanner;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
