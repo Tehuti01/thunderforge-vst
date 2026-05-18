@@ -88,13 +88,36 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
         });
     };
 
+    addAndMakeVisible (namSelector);
+    namSelector.addListener (this);
+    namScanner = std::make_unique<NAMScannerThread> (namSelector);
+    namScanner->startThread();
+
     setSize (1000, 650);
     startTimerHz (60);
 }
 
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
 {
+    if (namScanner)
+    {
+        namScanner->stopThread (1000);
+    }
     setLookAndFeel (nullptr);
+}
+
+void ThunderforgeAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged)
+{
+    if (comboBoxThatHasChanged == &namSelector && namScanner)
+    {
+        int index = namSelector.getSelectedItemIndex();
+        if (index >= 0 && index < namScanner->scannedFiles.size())
+        {
+            auto file = namScanner->scannedFiles[index];
+            if (file.existsAsFile())
+                audioProcessor.loadNAMModel (file);
+        }
+    }
 }
 
 void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
@@ -107,7 +130,11 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+
+    // Thermal Simulation: flicker proportional to drive
+    auto flicker = juce::Random::getSystemRandom().nextFloat() * 0.1f * driveVal;
+    auto baseAlpha = driveVal * 0.4f + peak * 0.2f + widthVal * 0.1f;
+    auto glowAlpha = std::clamp (baseAlpha + flicker, 0.0f, 1.0f);
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -169,6 +196,7 @@ void ThunderforgeAudioProcessorEditor::resized()
     auto buttonsArea = area.removeFromTop (30);
     loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
     loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namSelector.setBounds (buttonsArea.removeFromLeft (150).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());
