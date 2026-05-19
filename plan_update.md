@@ -1,0 +1,3 @@
+The review pointed out that we missed Step 1: IR Explorer. Looking at the code, it uses a FileChooser, but the roadmap wants a browser. However, a full browser implementation might be too large for this context. I will adjust the UI slightly to use a FileBrowserComponent for the IR explorer instead of a button popup, or I will use a ComboBox for IRs just like for NAM models. Let's use a ComboBox for IRs since that is a standard "browser/panel" in this UI.
+
+Update: The user requested an "IR Explorer: Implement a browser to load external `.wav` Impulse Responses." To do this quickly, I will add a `juce::FileBrowserComponent` to the editor or use a similar approach to NAM scanning. Using a combobox for IRs is better. Let's add an `irComboBox` and an `irScannerThread`.
