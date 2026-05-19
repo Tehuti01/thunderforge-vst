@@ -3,6 +3,76 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+class NamScannerThread : public juce::Thread {
+public:
+    NamScannerThread(juce::Component::SafePointer<ThunderforgeAudioProcessorEditor> editor)
+        : juce::Thread("NamScannerThread"), editorPtr(editor) {}
+
+    void run() override {
+        juce::StringArray names;
+        std::vector<juce::File> paths;
+
+        auto docsDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("Lukas Hansen Audio").getChildFile("NAM Models");
+        if (!docsDir.exists()) docsDir.createDirectory();
+
+        juce::RangedDirectoryIterator iter(docsDir, true, "*.nam");
+
+        for (const auto& entry : iter) {
+            if (threadShouldExit()) return;
+            auto file = entry.getFile();
+            names.add(file.getFileNameWithoutExtension());
+            paths.push_back(file);
+        }
+
+        if (threadShouldExit()) return;
+
+        juce::MessageManager::callAsync([editorPtr = this->editorPtr, names, paths]() {
+            if (editorPtr != nullptr) {
+                editorPtr->onNamFilesFound(names, paths);
+            }
+        });
+    }
+
+private:
+    juce::Component::SafePointer<ThunderforgeAudioProcessorEditor> editorPtr;
+};
+
+class IrScannerThread : public juce::Thread {
+public:
+    IrScannerThread(juce::Component::SafePointer<ThunderforgeAudioProcessorEditor> editor)
+        : juce::Thread("IrScannerThread"), editorPtr(editor) {}
+
+    void run() override {
+        juce::StringArray names;
+        std::vector<juce::File> paths;
+
+        auto docsDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("Lukas Hansen Audio").getChildFile("Cabinet IRs");
+        if (!docsDir.exists()) docsDir.createDirectory();
+
+        juce::RangedDirectoryIterator iter(docsDir, true, "*.wav");
+
+        for (const auto& entry : iter) {
+            if (threadShouldExit()) return;
+            auto file = entry.getFile();
+            names.add(file.getFileNameWithoutExtension());
+            paths.push_back(file);
+        }
+
+        if (threadShouldExit()) return;
+
+        juce::MessageManager::callAsync([editorPtr = this->editorPtr, names, paths]() {
+            if (editorPtr != nullptr) {
+                editorPtr->onIrFilesFound(names, paths);
+            }
+        });
+    }
+
+private:
+    juce::Component::SafePointer<ThunderforgeAudioProcessorEditor> editorPtr;
+};
+
 ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (ThunderforgeAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
@@ -67,33 +137,71 @@ ThunderforgeAudioProcessorEditor::ThunderforgeAudioProcessorEditor (Thunderforge
     // Set slider names for LookAndFeel logic
     gainKnob.setName ("Drive");
 
-    addAndMakeVisible (loadNAMButton);
-    addAndMakeVisible (loadIRButton);
-
-    loadNAMButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select NAM Model...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.nam");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadNAMModel (file);
-        });
+    addAndMakeVisible (namComboBox);
+    namComboBox.setTextWhenNothingSelected("Loading NAMs...");
+    namComboBox.onChange = [this] {
+        int id = namComboBox.getSelectedId();
+        if (id > 0 && id <= namFiles.size()) {
+            audioProcessor.loadNAMModel(namFiles[id - 1]);
+        }
     };
 
-    loadIRButton.onClick = [this] {
-        chooser = std::make_unique<juce::FileChooser> ("Select Cabinet IR...", juce::File::getSpecialLocation (juce::File::userHomeDirectory), "*.wav");
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        chooser->launchAsync (flags, [this] (const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file.existsAsFile()) audioProcessor.loadCabinetIR (file);
-        });
+    juce::Component::SafePointer<ThunderforgeAudioProcessorEditor> sp(this);
+    namScannerThread = std::make_unique<NamScannerThread>(sp);
+    namScannerThread->startThread();
+
+    addAndMakeVisible (irComboBox);
+    irComboBox.setTextWhenNothingSelected("Loading IRs...");
+    irComboBox.onChange = [this] {
+        int id = irComboBox.getSelectedId();
+        if (id > 0 && id <= irFiles.size()) {
+            audioProcessor.loadCabinetIR(irFiles[id - 1]);
+        }
     };
+
+    irScannerThread = std::make_unique<IrScannerThread>(sp);
+    irScannerThread->startThread();
 
     setSize (1000, 650);
     startTimerHz (60);
 }
 
+void ThunderforgeAudioProcessorEditor::onNamFilesFound(const juce::StringArray& names, const std::vector<juce::File>& paths)
+{
+    namFiles = paths;
+    namComboBox.clear();
+    for (int i = 0; i < names.size(); ++i) {
+        namComboBox.addItem(names[i], i + 1);
+    }
+    if (names.size() > 0) {
+        namComboBox.setTextWhenNothingSelected("Select NAM");
+    } else {
+        namComboBox.setTextWhenNothingSelected("No NAMs found");
+    }
+}
+
+void ThunderforgeAudioProcessorEditor::onIrFilesFound(const juce::StringArray& names, const std::vector<juce::File>& paths)
+{
+    irFiles = paths;
+    irComboBox.clear();
+    for (int i = 0; i < names.size(); ++i) {
+        irComboBox.addItem(names[i], i + 1);
+    }
+    if (names.size() > 0) {
+        irComboBox.setTextWhenNothingSelected("Select IR");
+    } else {
+        irComboBox.setTextWhenNothingSelected("No IRs found");
+    }
+}
+
 ThunderforgeAudioProcessorEditor::~ThunderforgeAudioProcessorEditor() 
 {
+    if (namScannerThread) {
+        namScannerThread->stopThread(2000);
+    }
+    if (irScannerThread) {
+        irScannerThread->stopThread(2000);
+    }
     setLookAndFeel (nullptr);
 }
 
@@ -107,7 +215,7 @@ void ThunderforgeAudioProcessorEditor::paint (juce::Graphics& g)
     auto driveVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("ts_drive") / 100.0f;
     auto widthVal = (float)*audioProcessor.getAPVTS().getRawParameterValue ("stereo_width") / 200.0f;
     auto peak     = audioProcessor.getPeakLevel();
-    auto glowAlpha = (driveVal * 0.3f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.2f * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.005));
+    auto glowAlpha = (driveVal * 0.5f + peak * 0.2f + widthVal * 0.1f) * (0.8f + 0.5f * driveVal * std::sin (juce::Time::getMillisecondCounterHiRes() * 0.015 * (1.0f + driveVal)));
     
     auto area = getLocalBounds().toFloat().reduced (40);
     auto preampArea = area.removeFromLeft (140).reduced (10);
@@ -167,8 +275,8 @@ void ThunderforgeAudioProcessorEditor::resized()
     
     // Snapshot Buttons
     auto buttonsArea = area.removeFromTop (30);
-    loadNAMButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
-    loadIRButton.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    namComboBox.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
+    irComboBox.setBounds (buttonsArea.removeFromLeft (100).reduced (2));
 
     // LCD Layout
     lcd.setBounds (area.removeFromTop (220).reduced (10, 0).toNearestInt());

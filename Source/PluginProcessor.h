@@ -32,6 +32,9 @@ public:
     void loadPreset (int index);
     void triggerTestNote (bool play);
     
+    void loadPresetsFromJson();
+    void savePresetsToJson();
+
     float getPeakLevel() const noexcept { return peakLevel.load(); }
     int getCurrentPresetIndex() const noexcept { return currentPresetIndex; }
     juce::String getPresetName (int i) const;
@@ -56,7 +59,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -109,6 +112,11 @@ private:
     juce::dsp::Convolution cabinetIR;
     juce::String currentNAMName { "ELITE TUBE" };
     juce::String currentIRName { "4x12 V30" };
+
+    std::vector<thunderforge::Preset> cachedPresets;
+    juce::MidiKeyboardState keyboardState;
+
+    std::array<juce::RangedAudioParameter*, 10> midiMappedParams { nullptr };
 
     std::mutex fftMutex;
     

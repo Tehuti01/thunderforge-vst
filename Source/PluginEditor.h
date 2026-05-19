@@ -13,6 +13,8 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+    void onNamFilesFound(const juce::StringArray& names, const std::vector<juce::File>& paths);
+    void onIrFilesFound(const juce::StringArray& names, const std::vector<juce::File>& paths);
 
 private:
     ThunderforgeAudioProcessor& audioProcessor;
@@ -37,8 +39,13 @@ private:
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton testNoteButton { "TEST NOTE" };
-    juce::TextButton loadNAMButton { "LOAD AMP" };
-    juce::TextButton loadIRButton { "LOAD CAB" };
+    juce::ComboBox namComboBox { "NAM_MODELS" };
+    juce::ComboBox irComboBox { "IR_MODELS" };
+
+    std::vector<juce::File> namFiles;
+    std::unique_ptr<juce::Thread> namScannerThread;
+    std::vector<juce::File> irFiles;
+    std::unique_ptr<juce::Thread> irScannerThread;
 
     // 300x Metrics
     thunderforge::VU_Meter inputMeter;
